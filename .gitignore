@@ -1,0 +1,15 @@
+venv/
+
+.env
+
+*.pyc
+
+*.db
+
+.idea/
+
+*.db-journal
+
+scratch/
+*.txt
+token
