@@ -41,7 +41,7 @@ class coordinates(commands.Cog):
                 rows = await cursor.fetchall()
         coords_list = f"{user.display_name}'s coords:\n"
         for i in rows:
-            coords_list += f"{i[1]}\n"
+            coords_list += f"{i[2]}\n"
         embed_coords = discord.Embed(title=f"{coords_list}", colour=0x00FF00)
         await ctx.send(embed=embed_coords)
 
@@ -67,23 +67,19 @@ class coordinates(commands.Cog):
 
     @commands.command()
     async def allcoords(self, ctx):
-        author_id = ctx.author.id
-        author_nick = ctx.author
         guild_id = ctx.guild.id
         guild = ctx.guild
         embed_error = discord.Embed(title='No coords set', colour=0xFF0000)
         async with aiosqlite.connect("coorddata") as db:
             async with db.execute(
-                    "SELECT usernick, base_coords FROM coords WHERE guild_id=?", (guild_id,)) as cursor:
+                    "SELECT user_id, base_coords FROM coords WHERE guild_id=?", (guild_id,)) as cursor:
                 rows = await cursor.fetchall()
-                if rows is None:
-                    await ctx.send(embed=embed_error)
-                coords = rows
-                if (guild_id,) not in rows:
+                if not rows:
                     await ctx.send(embed=embed_error)
                 else:
                     await (BotEmbedPaginator(ctx, pages(
-                        numbered(coords), n=5, title=f'Coordinates for {guild}'))).run()
+                        numbered([f"{ctx.guild.get_member(r[0])}: {r[1]}" for r in rows]),
+                        n=5, title=f'Coordinates for {guild}'))).run()
 
     @commands.command()
     @commands.has_permissions(administrator=True)
