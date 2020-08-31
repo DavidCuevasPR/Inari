@@ -7,11 +7,16 @@ from utils import pages, group_list, numbered
 
 
 class coordinates(commands.Cog):
+    """Commands to create and store coordinates for your Minecraft server"""
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.command(aliases=['cs'])
     async def coordset(self, ctx, x: int, y: int, z: int):
+        """Sets the coord of the user using format: (x) (y) (z)
+         alias: 'cs'"""
+        message = ctx.message
+        await message.delete(delay=1)
         author_id = ctx.author.id
         author_nick = ctx.author
         authornick = author_nick.display_name
@@ -34,6 +39,9 @@ class coordinates(commands.Cog):
 
     @commands.command()
     async def coords(self, ctx, user: discord.Member):
+        """Returns the coords of the user mentioned"""
+        message = ctx.message
+        await message.delete(delay=1)
         guild_id = ctx.guild.id
         async with aiosqlite.connect("coorddata") as db:
             async with db.execute("SELECT * FROM coords WHERE guild_id=? and user_id=?",
@@ -47,6 +55,9 @@ class coordinates(commands.Cog):
 
     @commands.command()
     async def coordel(self, ctx):
+        """Deletes the coords of the author of the message from the database"""
+        message = ctx.message
+        await message.delete(delay=1)
         author_id = ctx.author.id
         author_nick = ctx.author
         guild_id = ctx.guild.id
@@ -65,8 +76,12 @@ class coordinates(commands.Cog):
         else:
             await confirmation.update("Not confirmed", hide_author=True, color=0xff5555)
 
-    @commands.command()
+    @commands.command(aliases=['allcds'])
     async def allcoords(self, ctx):
+        """Returns a list of the coords from all users
+         alias: 'allcds'"""
+        message = ctx.message
+        await message.delete(delay=1)
         guild_id = ctx.guild.id
         guild = ctx.guild
         embed_error = discord.Embed(title='No coords set', colour=0xFF0000)
@@ -81,9 +96,13 @@ class coordinates(commands.Cog):
                         numbered([f"{ctx.guild.get_member(r[0])}: {r[1]}" for r in rows]),
                         n=5, title=f'Coordinates for {guild}'))).run()
 
-    @commands.command()
+    @commands.command(aliases=['delcds'])
     @commands.has_permissions(administrator=True)
     async def delcoords(self, ctx, user: discord.Member):
+        """Users with the administrator permission can delete all coords from the mentioned user
+        alias: 'delcds'"""
+        message = ctx.message
+        await message.delete(delay=1)
         author_nick = ctx.author
         guild_id = ctx.guild.id
         confirmation = BotConfirmation(ctx, 0x00FF00)
