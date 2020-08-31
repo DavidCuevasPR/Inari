@@ -20,8 +20,8 @@ async def on_message(message: discord.Message):
         return
     if message.content.startswith('$'):
         rand = random.randint(0, 20)
-        GoT = [13, 14, 15, 16]
-        Minecraft = [3, 4, 5, 6]
+        GoT = [13, 14, 15, 16, 17]
+        Minecraft = [3, 4, 5, 6, 7]
         if rand in GoT:
             await bot.change_presence(
                 status=discord.Status.online, activity=discord.Game(name='Ghost Of Tsushima'))
@@ -31,6 +31,7 @@ async def on_message(message: discord.Message):
         if rand not in GoT and Minecraft:
             await bot.change_presence(
                 status=discord.Status.online, activity=discord.Game(name='$help'))
+    await bot.process_commands(message)
 
 
 @bot.command()
