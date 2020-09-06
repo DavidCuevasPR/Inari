@@ -24,15 +24,20 @@ class coordinates(commands.Cog):
                                         base_coords text,
                                         guild_id integer
                                         );"""
-        ints = [x, y, z]
-        str_of_coords = "/".join([str(int) for int in ints])
-        async with aiosqlite.connect("coorddata") as db:
-            await db.execute(sql_create_coords_table)
-            await db.execute(
-                """INSERT INTO coords(user_id, usernick, base_coords, guild_id) VALUES (?,?,?,?)""",
-                (ctx.author.id, ctx.author.display_name, str_of_coords, ctx.guild.id,))
-            await db.commit()
-        await ctx.send('Coords set')
+        ints = [x, z, y]
+        if y > 256:
+            await ctx.send('Y level cant be higher than 256 blocks :b')
+        else:
+            str_of_coords = "/".join([str(int) for int in ints])
+            async with aiosqlite.connect("coorddata") as db:
+                await db.execute(sql_create_coords_table)
+                await db.execute(
+                    """INSERT INTO coords(user_id, usernick, base_coords, guild_id) VALUES (?,?,?,?)""",
+                    (ctx.author.id, ctx.author.display_name, str_of_coords, ctx.guild.id,))
+                await db.commit()
+            embed_set = discord.Embed(
+                title=f'Coords set for {ctx.author.display_name} as {str_of_coords}', colour=0xFFAE00)
+            await ctx.send(embed=embed_set)
 
     @commands.command()
     async def coords(self, ctx, user: discord.Member):
@@ -43,12 +48,17 @@ class coordinates(commands.Cog):
             async with db.execute("SELECT * FROM coords WHERE guild_id=? and user_id=?",
                                   (ctx.guild.id, user.id,)) as cursor:
                 rows = await cursor.fetchall()
-        coords_list = f"{user.display_name}'s coords:\n"
-        for i in rows:
-            coords_list += f"{i[2]}\n"
-        embed_coords = discord.Embed(title=f"{coords_list}", colour=0xFFAE00)
-        embed_coords.set_thumbnail(url=ctx.guild.icon_url)
-        await ctx.send(embed=embed_coords)
+        if not rows:
+            embed_nocrds = discord.Embed(
+                title=f'No coords set for {user.display_name}', colour=0xFF0000)
+            await ctx.send(embed=embed_nocrds)
+        else:
+            coords_list = f"{user.display_name}'s coords:\n(x)/(z)/(y)\n"
+            for i in rows:
+                coords_list += f"{i[2]}\n"
+            embed_coords = discord.Embed(title=f"{coords_list}", colour=0xFFAE00)
+            embed_coords.set_thumbnail(url=user.avatar_url)
+            await ctx.send(embed=embed_coords)
 
     @commands.command()
     async def coordel(self, ctx):
@@ -62,7 +72,8 @@ class coordinates(commands.Cog):
                 await db.execute("DELETE FROM coords WHERE guild_id=? and user_id=?", (
                     ctx.guild.id, ctx.author.id,))
                 await db.commit()
-            embed_delete = discord.Embed(title=f"{ctx.author.display_name}'s coords deleted", colour=0xFFAE00)
+            embed_delete = discord.Embed(
+                title=f"{ctx.author.display_name}'s coords deleted", colour=0xFFAE00)
             await ctx.send(embed=embed_delete)
             await asyncio.sleep(1)
             await ctx.send('Now you live nowhere dummy :b')
