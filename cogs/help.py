@@ -18,7 +18,7 @@ class help(commands.Cog):
                 description='Use `$help *module*` to find out more about them!', colour=0xFFAE00)
             cogs_desc = ''
             for x in self.bot.cogs:
-                if x not in ['CommandErrorHandler', 'listener', 'help']:
+                if x not in ['CommandErrorHandler', 'listener', 'help', 'administration']:
                     cogs_desc += ('{} - {}'.format(x, self.bot.cogs[x].__doc__) + '\n')
             halp.add_field(name='Modules', value=cogs_desc[0:len(cogs_desc) - 1], inline=False)
             halp.set_thumbnail(url=self.bot.user.avatar_url)
