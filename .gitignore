@@ -14,3 +14,5 @@ scratch/
 *.txt
 token
 coorddata
+
+cogs/__pycache__/
