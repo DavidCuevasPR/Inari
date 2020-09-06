@@ -141,7 +141,8 @@ class coordinates(commands.Cog):
                              (name, str_of_coords, ctx.author.id, ctx.guild.id))
             await db.commit()
         embed_set = discord.Embed(
-            title=f'Misc coords for {name} as {str_of_coords}', description=f'By {ctx.author}')
+            title=f'Misc coords for {name} set as {str_of_coords}',
+            description=f'By {ctx.author}', colour=0xFFAE00)
         await ctx.send(embed=embed_set)
 
     @commands.command(aliases=['allmisc'])
@@ -172,7 +173,7 @@ class coordinates(commands.Cog):
             await db.execute("""DELETE FROM misc WHERE name=? AND guild_id=?""", (name, ctx.guild.id,))
             await db.commit()
         embed_del = discord.Embed(
-            title=f'Misc coords for {name} deleted', description=f'Deleted by {ctx.author}')
+            title=f'Misc coords for {name} deleted', description=f'Deleted by {ctx.author}', colour=0xFF0000)
         await ctx.send(embed=embed_del)
 
 
