@@ -28,7 +28,7 @@ class coordinates(commands.Cog):
         if y > 256:
             await ctx.send('Y level cant be higher than 256 blocks :b')
         else:
-            str_of_coords = "/".join([str(int) for int in ints])
+            str_of_coords = "/".join([str(i) for i in ints])
             async with aiosqlite.connect("coorddata") as db:
                 await db.execute(sql_create_coords_table)
                 await db.execute(
@@ -40,10 +40,12 @@ class coordinates(commands.Cog):
             await ctx.send(embed=embed_set)
 
     @commands.command()
-    async def coords(self, ctx, user: discord.Member):
-        """Returns the coords of the user mentioned
-        e.g: $coords @tigersharkpr"""
+    async def coords(self, ctx, user: discord.Member = None):
+        """Returns the coords of the user mentioned, if no user is mentioned, returns the author's coords
+        e.g: $coords @ruffdelmo"""
         await ctx.message.delete()
+        if not user:
+            user = ctx.author
         async with aiosqlite.connect("coorddata") as db:
             async with db.execute("SELECT * FROM coords WHERE guild_id=? and user_id=?",
                                   (ctx.guild.id, user.id,)) as cursor:
@@ -61,21 +63,24 @@ class coordinates(commands.Cog):
             await ctx.send(embed=embed_coords)
 
     @commands.command()
-    async def coordel(self, ctx):
-        """Deletes the coords of the author of the message from the database"""
+    async def coordel(self, ctx, x: int, z: int, y=62):
+        """Deletes the coords mentioned (x)(z)(y defaults to 62 if not stated)
+         in the message from the database of the author
+        e.g: $coordel 45 45 62"""
         await ctx.message.delete()
+        ints = [x, z, y]
+        str_of_coords = "/".join([str(i) for i in ints])
         confirmation = BotConfirmation(ctx, 0xFFAE00)
         await confirmation.confirm("Are you sure?")
         if confirmation.confirmed:
             await confirmation.update("Confirmed", color=0xFFAE00)
             async with aiosqlite.connect("coorddata") as db:
-                await db.execute("DELETE FROM coords WHERE guild_id=? and user_id=?", (
-                    ctx.guild.id, ctx.author.id,))
+                await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=? AND base_coords=?", (
+                    ctx.guild.id, ctx.author.id, str_of_coords))
                 await db.commit()
             embed_delete = discord.Embed(
                 title=f"{ctx.author.display_name}'s coords deleted", colour=0xFFAE00)
             await ctx.send(embed=embed_delete)
-            await asyncio.sleep(1)
             await ctx.send('Now you live nowhere dummy :b')
 
         else:
@@ -122,13 +127,13 @@ class coordinates(commands.Cog):
 
     @commands.command(aliases=['smisc'])
     async def setmisccoords(self, ctx, name: str, x: int, z: int, y=62):
-        """Sets a miscellaneous coordinate for the server, e.g: end portal coords, spawn, etc
+        """Sets a miscellaneous coordinate, e.g: end portal coords, spawn, etc
         If the name has more than 1 word please wrap it in double quotes, e.g: "Mining District"
         e.g: '$setmisccoords "end portal" (x) (z) (y defaults to 62 if not stated)
         alias: smisc"""
         await ctx.message.delete()
         ints = [x, z, y]
-        str_of_coords = "/".join([str(int) for int in ints])
+        str_of_coords = "/".join([str(i) for i in ints])
         async with aiosqlite.connect("coorddata") as db:
             await db.execute("""CREATE TABLE IF NOT EXISTS misc (
                                 name text,
@@ -175,7 +180,8 @@ class coordinates(commands.Cog):
                 await db.execute("""DELETE FROM misc WHERE name=? AND guild_id=?""", (name, ctx.guild.id,))
                 await db.commit()
             embed_del = discord.Embed(
-                title=f'Misc coords for {name} deleted', description=f'Deleted by {ctx.author}', colour=0xFF0000)
+                title=f'Misc coords for {name} deleted',
+                description=f'Deleted by {ctx.author}', colour=0xFF0000)
             await ctx.send(embed=embed_del)
         else:
             await confirmation.update("Not confirmed", hide_author=True, color=0xff5555)
