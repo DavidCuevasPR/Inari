@@ -13,20 +13,21 @@ class help(commands.Cog):
         """Gets all cogs and commands of mine."""
         if not cog:
             """Cog listing.  What more?"""
-            halp = discord.Embed(title='Cog Listing and Uncatergorized Commands',
-                                 description='Use `$help *cog*` to find out more about them!')
+            halp = discord.Embed(
+                title='Module Listing and Uncatergorized Commands',
+                description='Use `$help *module*` to find out more about them!', colour=0xFFAE00)
             cogs_desc = ''
             for x in self.bot.cogs:
-                if x not in ['CommandErrorHandler', 'listener', 'help']:
+                if x not in ['CommandErrorHandler', 'listener', 'help', 'administration']:
                     cogs_desc += ('{} - {}'.format(x, self.bot.cogs[x].__doc__) + '\n')
-            halp.add_field(name='Cogs', value=cogs_desc[0:len(cogs_desc) - 1], inline=False)
+            halp.add_field(name='Modules', value=cogs_desc[0:len(cogs_desc) - 1], inline=False)
             halp.set_thumbnail(url=self.bot.user.avatar_url)
             await ctx.message.add_reaction(emoji='🦊')
             await ctx.send('', embed=halp)
         else:
             """Helps me remind you if you pass too many args."""
             if len(cog) > 1:
-                halp = discord.Embed(title='Error!', description='That is way too many cogs!',
+                halp = discord.Embed(title='Error!', description='That is way too many modules!',
                                      color=discord.Color.red())
                 await ctx.send('', embed=halp)
             else:
