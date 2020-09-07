@@ -8,8 +8,8 @@ class misc(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(hidden=True)
     @commands.is_owner()
+    @commands.command(hidden=True)
     async def reloadconfig(self, ctx: commands.Context):
         await ctx.message.delete(delay=1)
         reload_config()
@@ -47,7 +47,7 @@ class misc(commands.Cog):
     async def author(self, ctx: commands.Context):
         """Returns a greeting from the bot to the author, alias: 'me'"""
         await ctx.message.delete()
-        await ctx.send(f'Hey <@{ctx.author}>')
+        await ctx.send(f'Hey {ctx.author}')
 
     @commands.command(aliases=['itn'])
     async def idtoname(self, ctx: commands.Context, userid: int):

@@ -121,9 +121,8 @@ class coordinates(commands.Cog):
             await confirmation.update("Not confirmed", hide_author=True, color=0xff5555)
 
     @commands.command(aliases=['smisc'])
-    @commands.has_permissions(administrator=True)
     async def setmisccoords(self, ctx, name: str, x: int, z: int, y=62):
-        """*ADMIN ONLY* Sets a miscellaneous coordinate for the server, e.g: end portal coords, spawn, etc
+        """Sets a miscellaneous coordinate for the server, e.g: end portal coords, spawn, etc
         If the name has more than 1 word please wrap it in double quotes, e.g: "Mining District"
         e.g: '$setmisccoords "end portal" (x) (z) (y defaults to 62 if not stated)
         alias: smisc"""
@@ -153,28 +152,33 @@ class coordinates(commands.Cog):
         embed_error = discord.Embed(title='No misc coords set', colour=0xFF0000)
         async with aiosqlite.connect("coorddata") as db:
             async with db.execute(
-                    "SELECT name, coordinates FROM misc WHERE guild_id=?", (ctx.guild.id,)) as cursor:
+                    "SELECT name, coordinates, creator FROM misc WHERE guild_id=?",
+                    (ctx.guild.id,)) as cursor:
                 rows = await cursor.fetchall()
                 if not rows:
                     await ctx.send(embed=embed_error)
                 else:
                     await (BotEmbedPaginator(ctx, pages(
-                        numbered([f"{r[0]}: {r[1]}" for r in rows]),
+                        numbered([f"{r[0]}: {r[1]} created by {ctx.guild.get_member(r[2])}" for r in rows]),
                         n=10, title=f'Misc coordinates for {ctx.guild}'))).run()
 
     @commands.command(aliases=['delmisc'])
-    @commands.has_permissions(administrator=True)
     async def deletemisccoords(self, ctx, name: str):
-        """*ADMIN ONLY* Deletes the misc coord belonging to the name stated
+        """Deletes the misc coord belonging to the name stated
         e.g : $delmisc "end portal"
         alias: 'delmisc'"""
         await ctx.message.delete()
-        async with aiosqlite.connect("coorddata") as db:
-            await db.execute("""DELETE FROM misc WHERE name=? AND guild_id=?""", (name, ctx.guild.id,))
-            await db.commit()
-        embed_del = discord.Embed(
-            title=f'Misc coords for {name} deleted', description=f'Deleted by {ctx.author}', colour=0xFF0000)
-        await ctx.send(embed=embed_del)
+        confirmation = BotConfirmation(ctx, 0xFFAE00)
+        await confirmation.confirm("Are you sure?")
+        if confirmation.confirmed:
+            async with aiosqlite.connect("coorddata") as db:
+                await db.execute("""DELETE FROM misc WHERE name=? AND guild_id=?""", (name, ctx.guild.id,))
+                await db.commit()
+            embed_del = discord.Embed(
+                title=f'Misc coords for {name} deleted', description=f'Deleted by {ctx.author}', colour=0xFF0000)
+            await ctx.send(embed=embed_del)
+        else:
+            await confirmation.update("Not confirmed", hide_author=True, color=0xff5555)
 
 
 def setup(bot):
