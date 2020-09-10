@@ -5,6 +5,7 @@ from utils import pages, group_list, numbered
 
 
 class Help(commands.Cog):
+    """Help commands for finding commands and knowing their uses"""
     def __init__(self, bot):
         self.bot = bot
 

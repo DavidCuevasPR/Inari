@@ -55,13 +55,17 @@ class misc(commands.Cog):
         """Deletes messages from Inari
         e.g: $clear 10 (Will clear 10 messages belonging to Inari)"""
         await ctx.message.delete()
-        msg = []
-        async for x in ctx.channel.history(limit=50):
+        msglist = []
+        async for x in ctx.channel.history(limit=100):
             if x.author.id == self.bot.user.id:
-                msg.append(x)
-        for i in [amount]:
-            await msg[0].delete()
-        msg.clear()
+                msglist.append(x)
+        i = 0
+        for msg in msglist:
+            await msg.delete()
+            i += 1
+            if i >= amount:
+                break
+        msglist.clear()
 
 
 def setup(bot):
