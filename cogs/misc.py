@@ -1,18 +1,11 @@
 import discord
 from discord.ext import commands
-from configs.configs import reload_config, config
 
 
 class misc(commands.Cog):
     """Misc commands for fun and some utilities"""
     def __init__(self, bot):
         self.bot = bot
-
-    @commands.is_owner()
-    @commands.command(hidden=True)
-    async def reloadconfig(self, ctx: commands.Context):
-        await ctx.message.delete(delay=1)
-        reload_config()
 
     @commands.command()
     async def phrog(self, ctx):
