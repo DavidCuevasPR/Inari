@@ -4,6 +4,7 @@ from discord.ext import commands
 
 class misc(commands.Cog):
     """Misc commands for fun and some utilities"""
+
     def __init__(self, bot):
         self.bot = bot
 
@@ -48,6 +49,23 @@ class misc(commands.Cog):
         await ctx.message.delete()
         user_nick = await self.bot.fetch_user(userid)
         await ctx.send(f'{userid} --> {user_nick}')
+
+    @commands.command()
+    async def clear(self, ctx, amount: int = 1):
+        """Deletes messages from Inari
+        e.g: $clear 10 (Will clear 10 messages belonging to Inari)"""
+        await ctx.message.delete()
+        msglist = []
+        async for x in ctx.channel.history(limit=100):
+            if x.author.id == self.bot.user.id:
+                msglist.append(x)
+        i = 0
+        for msg in msglist:
+            await msg.delete()
+            i += 1
+            if i >= amount:
+                break
+        msglist.clear()
 
 
 def setup(bot):
