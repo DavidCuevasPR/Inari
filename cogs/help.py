@@ -1,75 +1,67 @@
 import discord
 from discord.ext import commands
-from disputils import BotEmbedPaginator, BotConfirmation, BotMultipleChoice
-from utils import pages, group_list, numbered
 
 
 class Help(commands.Cog):
     """Help commands for finding commands and knowing their uses"""
+
     def __init__(self, bot):
         self.bot = bot
 
     @commands.command(aliases=['h'])
-    async def help(self, ctx, *cog):
+    async def help(self, ctx, command: str = None):
         """Returns the commands for the mentioned cog/module
         alias: 'h'"""
         await ctx.message.delete()
-        if not cog:
+        if not command:
             halp = discord.Embed(
                 title='Module Listing and Uncatergorized Commands',
-                description='Use `$help *module*` to find out more about them!', colour=0xFFAE00)
+                description='Use `$commands(or $cmds) *module*` to see the commands of the module!',
+                colour=0xFFAE00)
             cogs_desc = ''
             for x in self.bot.cogs:
-                if x not in ['CommandErrorHandler', 'listener', 'help', 'administration']:
+                if x not in ['CommandErrorHandler', 'listener', 'Help', 'administration']:
                     cogs_desc += ('{} - {}'.format(x, self.bot.cogs[x].__doc__) + '\n')
             halp.add_field(name='Modules', value=cogs_desc[0:len(cogs_desc) - 1], inline=False)
             halp.set_thumbnail(url=self.bot.user.avatar_url)
             await ctx.send('', embed=halp)
         else:
-            embed_help = discord.Embed(
-                title=f'Commands for module {cog[0]}',
-                colour=0xFFAE00
-            )
-
-            if len(cog) > 1:
-                halp = discord.Embed(title='Error!', description='Only type one module after $help',
-                                     color=discord.Color.red())
-                await ctx.send('', embed=halp)
-            else:
-                for x in self.bot.cogs:
-                    for y in cog:
-                        if x == y:
-                            for c in self.bot.get_cog(y).get_commands():
-                                if not c.hidden:
-                                    embed_help.add_field(
-                                        name=f'{c.name}',
-                                        value=f'alias: {c.aliases}'
-                                    )
-            await ctx.send(embed=embed_help.set_footer(
-                text='Do $cmdhelp *command* to access info for said command'))
-
-    @commands.command(aliases=['ch'])
-    async def cmdhelp(self, ctx, command: str = None):
-        """Returns information on the stated command
-        alias: 'ch'"""
-        await ctx.message.delete()
-        if not command:
-            await ctx.send('Do $help *module* to see commands for a module')
-            return
-        c = self.bot.get_command(command)
-        if not c:
-            await ctx.send(embed=discord.Embed(title='Command doesnt exist',
-                                               description=(
-                                                   'Do $help \\*module\\* to see commands for said module'),
-                                               colour=0xFF0000
-                                               ))
-        else:
+            c = self.bot.get_command(command)
             embed_cmd = discord.Embed(
-                title=f'{command}',
+                title=command,
                 description=c.help,
                 colour=0xFFAE00
             )
             await ctx.send(embed=embed_cmd)
+
+    @commands.command(aliases=['cmds'])
+    async def commands(self, ctx, module: str = None):
+        await ctx.message.delete()
+        if not module:
+            await ctx.send(embed=discord.Embed(
+                title='Do `$commands *module*` to see commands for that module', colour=0xFFAE00))
+            return
+        else:
+            cg: commands.Cog = self.bot.get_cog(module)
+            if cg is None:
+                await ctx.send(embed=discord.Embed(
+                    title='Module does not exist',
+                    description='Do `$help` to see a list of modules',
+                    colour=0xFF0000))
+                return
+            else:
+                embed_commands = discord.Embed(
+                    title=f'Commands for module {cg.qualified_name}',
+                    colour=0xFFAE00
+                )
+                for cmd in self.bot.get_cog(module).get_commands():
+                    if not cmd.hidden:
+                        embed_commands.add_field(
+                            name=cmd.name,
+                            value=f'alias: {cmd.aliases}'
+                        )
+                await ctx.send(embed=embed_commands.set_footer(
+                    text='Do $help *command* to access info for said command'))
 
 
 def setup(bot):
