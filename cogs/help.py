@@ -15,7 +15,7 @@ class Help(commands.Cog):
         await ctx.message.delete()
         if not command:
             halp = discord.Embed(
-                title='Module Listing and Uncatergorized Commands',
+                title='Module Listing and Uncategorized Commands',
                 description='Use `$commands(or $cmds) *module*` to see the commands of the module!',
                 colour=0xFFAE00)
             cogs_desc = ''
@@ -27,19 +27,26 @@ class Help(commands.Cog):
             await ctx.send('', embed=halp)
         else:
             c = self.bot.get_command(command)
-            embed_cmd = discord.Embed(
-                title=command,
-                description=c.help,
-                colour=0xFFAE00
-            )
-            await ctx.send(embed=embed_cmd)
+            if not c:
+                await ctx.send(embed=discord.Embed(
+                    title='That command does not exist',
+                    description='Do `$cmds *module*` to see commands for a module',
+                    colour=0xFF0000))
+                return
+            else:
+                embed_cmd = discord.Embed(
+                    title=command,
+                    description=c.help,
+                    colour=0xFFAE00
+                )
+                await ctx.send(embed=embed_cmd.set_footer(text='Do $help to see more modules'))
 
     @commands.command(aliases=['cmds'])
     async def commands(self, ctx, module: str = None):
         await ctx.message.delete()
         if not module:
             await ctx.send(embed=discord.Embed(
-                title='Do `$commands *module*` to see commands for that module', colour=0xFFAE00))
+                title='Do `$commands *module*` to see commands for a module', colour=0xFFAE00))
             return
         else:
             cg: commands.Cog = self.bot.get_cog(module)
