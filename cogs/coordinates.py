@@ -93,7 +93,8 @@ class coordinates(commands.Cog):
         embed_error = discord.Embed(title='No coords set', colour=0xFF0000)
         async with aiosqlite.connect("coorddata") as db:
             async with db.execute(
-                    "SELECT user_id, base_coords FROM coords WHERE guild_id=?", (ctx.guild.id,)) as cursor:
+                    "SELECT user_id, base_coords FROM coords WHERE guild_id=?",
+                    (ctx.guild.id,)) as cursor:
                 rows = await cursor.fetchall()
                 if not rows:
                     await ctx.send(embed=embed_error)
@@ -105,7 +106,8 @@ class coordinates(commands.Cog):
     @commands.command(aliases=['delucds'])
     @commands.has_permissions(administrator=True)
     async def delusercoords(self, ctx, user: discord.Member):
-        """*ADMIN ONLY* Users with the administrator permission can delete all coords from the mentioned user
+        """*ADMIN ONLY*
+        Users with the administrator permission can delete all coords from the mentioned user
         e.g: $delucds @tigersharkpr
         alias: 'delcds'"""
         await ctx.message.delete()
