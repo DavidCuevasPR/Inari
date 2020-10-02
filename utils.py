@@ -1,8 +1,11 @@
-import discord
 from typing import List, Any, Union
 
+import aiosqlite
+import discord
 
-def pages(lst: List[Any], n: int, title: str, *, fmt: str = "```%s```", sep: str = "\n") -> List[discord.Embed]:
+
+def pages(lst: List[Any],
+          n: int, title: str, *, fmt: str = "```%s```", sep: str = "\n") -> List[discord.Embed]:
     # noinspection GrazieInspection
     """
         Paginates a list into embeds to use with :class:disputils.BotEmbedPaginator
