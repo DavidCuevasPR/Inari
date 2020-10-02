@@ -1,6 +1,7 @@
-import discord
-import aiosqlite
 from typing import List, Any, Union
+
+import aiosqlite
+import discord
 
 
 def pages(lst: List[Any],

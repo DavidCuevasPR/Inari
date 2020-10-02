@@ -1,8 +1,9 @@
+import aiosqlite
 import discord
 from disputils import BotEmbedPaginator, BotConfirmation, BotMultipleChoice
 from discord.ext import commands
-import aiosqlite
-from utils import pages, group_list, numbered
+
+from utils import group_list, numbered, pages
 
 
 class coordinates(commands.Cog):

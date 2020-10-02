@@ -1,8 +1,12 @@
+import datetime
+import io
+
+import aiosqlite
 import discord
+import matplotlib.pyplot as plt
+import numpy as np
 from discord.ext import commands, tasks
 from discord.utils import find
-import datetime
-import aiosqlite
 
 
 class statistics(commands.Cog):
@@ -117,14 +121,65 @@ class statistics(commands.Cog):
                                 elif int(week_report[0]) == int(week_report[6]):
                                     embed_report.set_footer(text='Your server has not grown')
 
-                                general = find(lambda x: x.name == 'general', guild.text_channels)
-                                if general and general.permissions_for(guild.me).send_messages:
-                                    await general.send(embed=embed_report)
-                                    await db.execute("""UPDATE guildgrowth SET sent=? WHERE guild_id=?""",
-                                                     ('Yes', guild.id,))
-                await db.commit()
+                                async with db.execute(
+                                        """SELECT stats_channel FROM guildgrowth WHERE guild_id=?""",
+                                        (guild.id,)) as chan_cursor:
+                                    stats_channel = await chan_cursor.fetchall()
+                                    if stats_channel[0][0]:
+                                        channel = find(lambda x: x.name == f'{stats_channel[0][0]}',
+                                                       guild.text_channels)
+                                        if channel and channel.permissions_for(guild.me).send_messages:
+                                            plt.clf()
+                                            objects = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
+                                            x_pos = np.arange(len(objects))
+                                            plt.ylim(top=max(week_report) + 50)
+                                            plt.bar(x_pos, week_report, align='center', alpha=0.5)
+                                            for a, b in zip(x_pos, week_report):
+                                                plt.text(a, b, str(b),
+                                                         horizontalalignment='center',
+                                                         verticalalignment='top',
+                                                         bbox=dict(facecolor='blue', alpha=0.2))
+                                            plt.xticks(x_pos, objects)
+                                            plt.ylabel('Member Count')
+                                            plt.title(f'Weekly report for {guild.name}')
+                                            plt.xlabel('Weekdays')
+                                            buf = io.BytesIO()
+                                            plt.savefig(buf, format='png')
+                                            buf.seek(0)
+                                            file = discord.File(buf, filename='graph.png')
+                                            embed_report.set_image(url="attachment://graph.png")
+                                            await channel.send(file=file, embed=embed_report)
+                                            await db.execute("""UPDATE guildgrowth SET sent=? WHERE guild_id=?""",
+                                                             ('Yes', guild.id,))
+                                    elif not stats_channel[0][0]:
+                                        channel = find(lambda x: x.name == 'general',
+                                                       guild.text_channels)
+                                        if channel and channel.permissions_for(guild.me).send_messages:
+                                            plt.clf()
+                                            objects = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
+                                            x_pos = np.arange(len(objects))
+                                            plt.ylim(top=max(week_report) + 50)
+                                            plt.bar(x_pos, week_report, align='center', alpha=0.5)
+                                            for a, b in zip(x_pos, week_report):
+                                                plt.text(a, b, str(b),
+                                                         horizontalalignment='center',
+                                                         verticalalignment='top',
+                                                         bbox=dict(facecolor='blue', alpha=0.2))
+                                            plt.xticks(x_pos, objects)
+                                            plt.ylabel('Member Count')
+                                            plt.title(f'Weekly report for {guild.name}')
+                                            plt.xlabel('Weekdays')
+                                            buf = io.BytesIO()
+                                            plt.savefig(buf, format='png')
+                                            buf.seek(0)
+                                            file = discord.File(buf, filename='graph.png')
+                                            embed_report.set_image(url="attachment://graph.png")
+                                            await channel.send(file=file, embed=embed_report)
+                                            await db.execute("""UPDATE guildgrowth SET sent=? WHERE guild_id=?""",
+                                                             ('Yes', guild.id,))
+            await db.commit()
 
-    @tasks.loop(hours=8)
+    @tasks.loop(hours=6)
     async def weekday_check(self):
         """Checks the weekday for use in the other functions,
          runs those functions and creates the table if it doesnt exist in the database"""
@@ -139,11 +194,13 @@ class statistics(commands.Cog):
                                 friday INTEGER,
                                 saturday INTEGER,
                                 sunday INTEGER,
-                                stats_on TEXT
+                                stats_on TEXT,
+                                sent TEXT,
+                                stats_channel TEXT
                                 );""")
-            await db.commit()
             await self.guild_check()
             await self.weekday_insert(weekday)
+            await db.commit()
 
     @commands.command()
     async def statson(self, ctx):
@@ -168,18 +225,19 @@ class statistics(commands.Cog):
     async def statsnow(self, ctx):
         """Returns the weekly report up until the present day"""
         weekday = datetime.datetime.weekday(datetime.datetime.now())
+        await self.weekday_insert(weekday)
         week = {0: 'monday', 1: 'tuesday', 2: 'wednesday', 3: 'thursday', 4: 'friday', 5: 'saturday', 6: 'sunday'}
         async with aiosqlite.connect('guildgrowth.db') as db:
             async with db.execute("""SELECT monday, tuesday, wednesday, thursday, friday, saturday, sunday, stats_on 
                                      FROM guildgrowth WHERE guild_id=?""", (ctx.guild.id,)) as cursor:
                 raw_rows = await cursor.fetchall()
                 checked_rows = []
-                for members in raw_rows[0]:
-                    if not raw_rows:
+                for members in raw_rows[0][:-1]:
+                    if members is None:
                         members = 0
-                        checked_rows.append(members)
+                        checked_rows.append(int(members))
                     else:
-                        checked_rows.append(members)
+                        checked_rows.append(int(members))
 
                 if raw_rows[0][7] == 'Off':
                     await ctx.send(embed=discord.Embed(title='Statistics for this server are deactivated',
@@ -192,10 +250,39 @@ class statistics(commands.Cog):
                                     'due to the bot not being on that day and adding 0 as a substitute value',
                         colour=0xFFAE00)
 
-                    for day in range(0, weekday+1):
+                    for day in range(0, weekday + 1):
                         embed_report.add_field(name=f'{week[day]}', value=f'{checked_rows[day]}')
+                    plt.clf()
+                    objects = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
+                    x_pos = np.arange(weekday + 1)
+                    plt.xticks(x_pos, objects[:(weekday + 1)])
+                    plt.ylim(top=max(checked_rows) + 50)
+                    plt.bar(x_pos, checked_rows[:weekday + 1], align='center', alpha=0.5)
+                    for a, b in zip(x_pos, checked_rows[:weekday + 1]):
+                        plt.text(a, b, str(b),
+                                 horizontalalignment='center',
+                                 verticalalignment='top', bbox=dict(facecolor='blue', alpha=0.2))
+                    plt.ylabel('Member Count')
+                    plt.title(f'Weekly report for {ctx.guild.name} from monday to {week[weekday]}')
+                    plt.xlabel('Weekdays')
+                    buf = io.BytesIO()
+                    plt.savefig(buf, format='png')
+                    buf.seek(0)
+                    file = discord.File(buf, filename='graph.png')
+                    embed_report.set_image(url="attachment://graph.png")
+                    await ctx.send(file=file, embed=embed_report)
 
-                    await ctx.send(embed=embed_report)
+    @commands.command(aliases=['statsch'])
+    async def statschannel(self, ctx, channel: discord.TextChannel):
+        """Sets a channel for the weekly reports to be sent to
+        e.g: $statsch #bot-spam"""
+        async with aiosqlite.connect('guildgrowth.db') as db:
+            await db.execute("""UPDATE guildgrowth SET stats_channel=? WHERE guild_id=?""",
+                             (channel.name, ctx.guild.id))
+            await db.commit()
+        await ctx.send(embed=discord.Embed(title=f'Stats channel updated for {ctx.guild.name} ',
+                                           description=f'Set as: <#{channel.id}>',
+                                           colour=0xFFAE00))
 
 
 def setup(bot):
