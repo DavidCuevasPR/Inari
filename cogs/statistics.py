@@ -209,7 +209,7 @@ class statistics(commands.Cog):
     @commands.command()
     async def statson(self, ctx):
         """Turns stats on or off for the server (Stats are turned on by default)"""
-        weekday = datetime.datetime.weekday(datetime.datetime.now())
+        await ctx.message.delete()
         await weekday_table_create()
         await self.guild_check()
         async with aiosqlite.connect('guildgrowth.db') as db:
@@ -231,6 +231,7 @@ class statistics(commands.Cog):
     @commands.command()
     async def statsnow(self, ctx):
         """Returns the weekly report up until the present day"""
+        await ctx.message.delete()
         weekday = datetime.datetime.weekday(datetime.datetime.now())
         await weekday_table_create()
         await self.guild_check()
@@ -285,6 +286,7 @@ class statistics(commands.Cog):
     async def statschannel(self, ctx, channel: discord.TextChannel):
         """Sets a channel for the weekly reports to be sent to
         e.g: $statsch #bot-spam"""
+        await ctx.message.delete()
         await weekday_table_create()
         await self.guild_check()
         async with aiosqlite.connect('guildgrowth.db') as db:
