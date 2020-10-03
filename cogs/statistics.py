@@ -283,12 +283,18 @@ class statistics(commands.Cog):
                     await ctx.send(file=file, embed=embed_report)
 
     @commands.command(aliases=['statsch'])
-    async def statschannel(self, ctx, channel: discord.TextChannel):
+    async def statschannel(self, ctx, channel: discord.TextChannel = None):
         """Sets a channel for the weekly reports to be sent to
         e.g: $statsch #bot-spam"""
         await ctx.message.delete()
         await weekday_table_create()
         await self.guild_check()
+        if not channel:
+            await ctx.send(embed=discord.Embed(title='Please enter a channel from your discord server',
+                                               description='e.g: `$statsch #bot-spam`',
+                                               colour=0xFFAE00))
+            return
+
         async with aiosqlite.connect('guildgrowth.db') as db:
             await db.execute("""UPDATE guildgrowth SET stats_channel=? WHERE guild_id=?""",
                              (channel.name, ctx.guild.id))
