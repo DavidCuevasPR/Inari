@@ -209,7 +209,7 @@ class statistics(commands.Cog):
     @commands.command()
     async def statson(self, ctx):
         """Turns stats on or off for the server (Stats are turned on by default)"""
-        weekday = datetime.datetime.weekday(datetime.datetime.now())
+        await ctx.message.delete()
         await weekday_table_create()
         await self.guild_check()
         async with aiosqlite.connect('guildgrowth.db') as db:
@@ -231,6 +231,7 @@ class statistics(commands.Cog):
     @commands.command()
     async def statsnow(self, ctx):
         """Returns the weekly report up until the present day"""
+        await ctx.message.delete()
         weekday = datetime.datetime.weekday(datetime.datetime.now())
         await weekday_table_create()
         await self.guild_check()
@@ -282,11 +283,18 @@ class statistics(commands.Cog):
                     await ctx.send(file=file, embed=embed_report)
 
     @commands.command(aliases=['statsch'])
-    async def statschannel(self, ctx, channel: discord.TextChannel):
+    async def statschannel(self, ctx, channel: discord.TextChannel = None):
         """Sets a channel for the weekly reports to be sent to
         e.g: $statsch #bot-spam"""
+        await ctx.message.delete()
         await weekday_table_create()
         await self.guild_check()
+        if not channel:
+            await ctx.send(embed=discord.Embed(title='Please enter a channel from your discord server',
+                                               description='e.g: `$statsch #bot-spam`',
+                                               colour=0xFFAE00))
+            return
+
         async with aiosqlite.connect('guildgrowth.db') as db:
             await db.execute("""UPDATE guildgrowth SET stats_channel=? WHERE guild_id=?""",
                              (channel.name, ctx.guild.id))
