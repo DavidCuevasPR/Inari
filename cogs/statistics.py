@@ -9,6 +9,24 @@ from discord.ext import commands, tasks
 from discord.utils import find
 
 
+async def weekday_table_create():
+    async with aiosqlite.connect('guildgrowth.db') as db:
+        await db.execute("""CREATE TABLE IF NOT EXISTS guildgrowth (
+                            guild_id INTEGER,
+                            monday INTEGER,
+                            tuesday INTEGER,
+                            wednesday INTEGER,
+                            thursday INTEGER,
+                            friday INTEGER,
+                            saturday INTEGER,
+                            sunday INTEGER,
+                            stats_on TEXT,
+                            sent TEXT,
+                            stats_channel TEXT
+                            );""")
+        await db.commit()
+
+
 class statistics(commands.Cog):
     """Statistics for guilds"""
 
@@ -184,27 +202,16 @@ class statistics(commands.Cog):
         """Checks the weekday for use in the other functions,
          runs those functions and creates the table if it doesnt exist in the database"""
         weekday = datetime.datetime.weekday(datetime.datetime.now())
-        async with aiosqlite.connect('guildgrowth.db') as db:
-            await db.execute("""CREATE TABLE IF NOT EXISTS guildgrowth (
-                                guild_id INTEGER,
-                                monday INTEGER,
-                                tuesday INTEGER,
-                                wednesday INTEGER,
-                                thursday INTEGER,
-                                friday INTEGER,
-                                saturday INTEGER,
-                                sunday INTEGER,
-                                stats_on TEXT,
-                                sent TEXT,
-                                stats_channel TEXT
-                                );""")
-            await self.guild_check()
-            await self.weekday_insert(weekday)
-            await db.commit()
+        await weekday_table_create()
+        await self.guild_check()
+        await self.weekday_insert(weekday)
 
     @commands.command()
     async def statson(self, ctx):
         """Turns stats on or off for the server (Stats are turned on by default)"""
+        weekday = datetime.datetime.weekday(datetime.datetime.now())
+        await weekday_table_create()
+        await self.guild_check()
         async with aiosqlite.connect('guildgrowth.db') as db:
             async with db.execute("""SELECT stats_on FROM guildgrowth WHERE guild_id=?""",
                                   (ctx.guild.id,)) as cursor:
@@ -225,6 +232,8 @@ class statistics(commands.Cog):
     async def statsnow(self, ctx):
         """Returns the weekly report up until the present day"""
         weekday = datetime.datetime.weekday(datetime.datetime.now())
+        await weekday_table_create()
+        await self.guild_check()
         await self.weekday_insert(weekday)
         week = {0: 'monday', 1: 'tuesday', 2: 'wednesday', 3: 'thursday', 4: 'friday', 5: 'saturday', 6: 'sunday'}
         async with aiosqlite.connect('guildgrowth.db') as db:
@@ -276,6 +285,8 @@ class statistics(commands.Cog):
     async def statschannel(self, ctx, channel: discord.TextChannel):
         """Sets a channel for the weekly reports to be sent to
         e.g: $statsch #bot-spam"""
+        await weekday_table_create()
+        await self.guild_check()
         async with aiosqlite.connect('guildgrowth.db') as db:
             await db.execute("""UPDATE guildgrowth SET stats_channel=? WHERE guild_id=?""",
                              (channel.name, ctx.guild.id))
