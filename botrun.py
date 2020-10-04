@@ -5,6 +5,8 @@ import discord
 from discord.utils import find
 from discord.ext import commands
 
+from cogs import stats, coordinates
+
 token = open('token', 'r').read()
 bot = commands.Bot(command_prefix='$')
 bot.remove_command('help')
@@ -13,6 +15,9 @@ bot.remove_command('help')
 @bot.event
 async def on_ready():
     await bot.change_presence(status=discord.Status.online, activity=discord.Game(name='$help'))
+    await stats.weekday_table_create()
+    await coordinates.coords_table_create()
+    await coordinates.admincoords_table_create()
     print('Inari is ready B)')
 
 
