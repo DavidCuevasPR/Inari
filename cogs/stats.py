@@ -9,6 +9,14 @@ from discord.ext import commands, tasks
 from discord.utils import find
 
 
+async def limit_decider(values):
+    member_count_checker = {1: 50, 2: 100, 3: 500, 4: 2500, 5: 10000, 6: 75000, 7: 100000}
+    max_value = max(values)
+    for num in member_count_checker.keys():
+        if len(str(max_value)) == num:
+            return member_count_checker[num]
+
+
 async def weekday_table_create():
     async with aiosqlite.connect('guildgrowth.db') as db:
         await db.execute("""CREATE TABLE IF NOT EXISTS guildgrowth (
@@ -25,10 +33,11 @@ async def weekday_table_create():
                             stats_channel TEXT
                             );""")
         await db.commit()
+    print('Statistics table created or already existed')
 
 
 class statistics(commands.Cog):
-    """Statistics for guilds"""
+    """Statistics for your server"""
 
     def __init__(self, bot):
         self.bot = bot
@@ -129,7 +138,8 @@ class statistics(commands.Cog):
                                         week_report[0]):  # comparison between Sunday and Monday
                                     sun_minus_mon = week_report[6] - week_report[0]
                                     embed_report.set_footer(
-                                        text=f'Your server has grown by {sun_minus_mon} members')
+                                        text=f'Your server has grown by {sun_minus_mon} members\n'
+                                             f'To turn off Weekly Reports do $statson')
 
                                 elif int(week_report[0]) > int(week_report[6]):
                                     mon_minus_sun = week_report[0] - week_report[6]
@@ -150,7 +160,7 @@ class statistics(commands.Cog):
                                             plt.clf()
                                             objects = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
                                             x_pos = np.arange(len(objects))
-                                            plt.ylim(top=max(week_report) + 50)
+                                            plt.ylim(top=max(week_report) + await limit_decider(week_report))
                                             plt.bar(x_pos, week_report, align='center', alpha=0.5)
                                             for a, b in zip(x_pos, week_report):
                                                 plt.text(a, b, str(b),
@@ -202,7 +212,6 @@ class statistics(commands.Cog):
         """Checks the weekday for use in the other functions,
          runs those functions and creates the table if it doesnt exist in the database"""
         weekday = datetime.datetime.weekday(datetime.datetime.now())
-        await weekday_table_create()
         await self.guild_check()
         await self.weekday_insert(weekday)
 
@@ -210,7 +219,6 @@ class statistics(commands.Cog):
     async def statson(self, ctx):
         """Turns stats on or off for the server (Stats are turned on by default)"""
         await ctx.message.delete()
-        await weekday_table_create()
         await self.guild_check()
         async with aiosqlite.connect('guildgrowth.db') as db:
             async with db.execute("""SELECT stats_on FROM guildgrowth WHERE guild_id=?""",
@@ -233,7 +241,6 @@ class statistics(commands.Cog):
         """Returns the weekly report up until the present day"""
         await ctx.message.delete()
         weekday = datetime.datetime.weekday(datetime.datetime.now())
-        await weekday_table_create()
         await self.guild_check()
         await self.weekday_insert(weekday)
         week = {0: 'monday', 1: 'tuesday', 2: 'wednesday', 3: 'thursday', 4: 'friday', 5: 'saturday', 6: 'sunday'}
@@ -266,7 +273,7 @@ class statistics(commands.Cog):
                     objects = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
                     x_pos = np.arange(weekday + 1)
                     plt.xticks(x_pos, objects[:(weekday + 1)])
-                    plt.ylim(top=max(checked_rows) + 50)
+                    plt.ylim(top=max(checked_rows) + await limit_decider(checked_rows))
                     plt.bar(x_pos, checked_rows[:weekday + 1], align='center', alpha=0.5)
                     for a, b in zip(x_pos, checked_rows[:weekday + 1]):
                         plt.text(a, b, str(b),
@@ -287,7 +294,6 @@ class statistics(commands.Cog):
         """Sets a channel for the weekly reports to be sent to
         e.g: $statsch #bot-spam"""
         await ctx.message.delete()
-        await weekday_table_create()
         await self.guild_check()
         if not channel:
             await ctx.send(embed=discord.Embed(title='Please enter a channel from your discord server',
