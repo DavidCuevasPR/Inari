@@ -154,9 +154,10 @@ class statistics(commands.Cog):
                                         (guild.id,)) as chan_cursor:
                                     stats_channel = await chan_cursor.fetchall()
                                     if stats_channel[0][0]:
-                                        channel = find(lambda x: x.name == f'{stats_channel[0][0]}',
-                                                       guild.text_channels)
-                                        if channel and channel.permissions_for(guild.me).send_messages:
+                                        channel = find(lambda x: x == int(stats_channel[0][0]),
+                                                       [TextChannel.id for TextChannel in guild.text_channels])
+                                        send_perms = guild.get_channel(channel).permissions_for(guild.me).send_messages
+                                        if channel and send_perms:
                                             plt.clf()
                                             objects = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
                                             x_pos = np.arange(len(objects))
@@ -176,7 +177,7 @@ class statistics(commands.Cog):
                                             buf.seek(0)
                                             file = discord.File(buf, filename='graph.png')
                                             embed_report.set_image(url="attachment://graph.png")
-                                            await channel.send(file=file, embed=embed_report)
+                                            await guild.get_channel(channel).send(file=file, embed=embed_report)
                                             await db.execute("""UPDATE guildgrowth SET sent=? WHERE guild_id=?""",
                                                              ('Yes', guild.id,))
                                     elif not stats_channel[0][0]:
@@ -296,18 +297,21 @@ class statistics(commands.Cog):
         await ctx.message.delete()
         await self.guild_check()
         if not channel:
-            await ctx.send(embed=discord.Embed(title='Please enter a channel from your discord server',
-                                               description='e.g: `$statsch #bot-spam`',
+            async with aiosqlite.connect('guildgrowth.db') as db:
+                await db.execute("""Update guildgrowth SET stats_channel=? WHERE guild_id=?""",
+                                 (ctx.channel.id, ctx.guild.id,))
+                await db.commit()
+            await ctx.send(embed=discord.Embed(title=f'Stats channel updated for {ctx.guild.name} ',
+                                               description=f'Set as: <#{ctx.channel.id}>',
                                                colour=0xFFAE00))
-            return
-
-        async with aiosqlite.connect('guildgrowth.db') as db:
-            await db.execute("""UPDATE guildgrowth SET stats_channel=? WHERE guild_id=?""",
-                             (channel.name, ctx.guild.id))
-            await db.commit()
-        await ctx.send(embed=discord.Embed(title=f'Stats channel updated for {ctx.guild.name} ',
-                                           description=f'Set as: <#{channel.id}>',
-                                           colour=0xFFAE00))
+        else:
+            async with aiosqlite.connect('guildgrowth.db') as db:
+                await db.execute("""UPDATE guildgrowth SET stats_channel=? WHERE guild_id=?""",
+                                 (channel.id, ctx.guild.id))
+                await db.commit()
+            await ctx.send(embed=discord.Embed(title=f'Stats channel updated for {ctx.guild.name} ',
+                                               description=f'Set as: <#{channel.id}>',
+                                               colour=0xFFAE00))
 
 
 def setup(bot):
