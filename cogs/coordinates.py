@@ -45,6 +45,7 @@ class coordinates(commands.Cog):
         ints = [x, z, y]
         if y > 256:
             await ctx.send('Y level cant be higher than 256 blocks :b')
+            return
         else:
             str_of_coords = "/".join([str(i) for i in ints])
             async with aiosqlite.connect("coorddata") as db:
