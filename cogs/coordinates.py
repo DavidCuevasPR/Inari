@@ -46,29 +46,29 @@ class coordinates(commands.Cog):
     @commands.command(aliases=['cs'])
     async def coordset(self, ctx, x: int, z: int, y=62):
         """Sets the coord of the user using format: (x) (z) (y defaults to 62 if not stated)
-        e.g : $cs 50 50 62
+        e.g : $coordset 50 50 62
         alias: 'cs'"""
         await ctx.message.delete()
         ints = [x, z, y]
         confirmation = BotConfirmation(ctx, 0xFFAE00)
         if y > 256:
-            await ctx.send('Y level cant be higher than 256 blocks :b')
+            await ctx.send(embed=discord.Embed(title='Y level can\'t be higher than 256 blocks',
+                                         colour=0xFF0000))
             return
+        await confirmation.confirm(f"Are you sure you want to set your coords as: x: {x}/ z: {z}/ y:{y}?")
+        if confirmation.confirmed:
+            await confirmation.update("Confirmed", color=0xFFAE00)
+            str_of_coords = "/".join([str(i) for i in ints])
+            async with aiosqlite.connect("coorddata") as db:
+                await db.execute(
+                    """INSERT INTO coords(user_id, usernick, base_coords, guild_id) VALUES (?,?,?,?)""",
+                    (ctx.author.id, ctx.author.display_name, str_of_coords, ctx.guild.id,))
+                await db.commit()
+            embed_set = discord.Embed(
+                title=f'Coords set for {ctx.author.display_name} as {str_of_coords}', colour=0xFFAE00)
+            await ctx.send(embed=embed_set)
         else:
-            await confirmation.confirm(f"Are you sure you want to set your coords as: x: {x}/ z: {z}/ y:{y}?")
-            if confirmation.confirmed:
-                await confirmation.update("Confirmed", color=0xFFAE00)
-                str_of_coords = "/".join([str(i) for i in ints])
-                async with aiosqlite.connect("coorddata") as db:
-                    await db.execute(
-                        """INSERT INTO coords(user_id, usernick, base_coords, guild_id) VALUES (?,?,?,?)""",
-                        (ctx.author.id, ctx.author.display_name, str_of_coords, ctx.guild.id,))
-                    await db.commit()
-                embed_set = discord.Embed(
-                    title=f'Coords set for {ctx.author.display_name} as {str_of_coords}', colour=0xFFAE00)
-                await ctx.send(embed=embed_set)
-            else:
-                await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+            await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
     @commands.command()
     async def coords(self, ctx, user: discord.Member = None):
@@ -118,38 +118,41 @@ class coordinates(commands.Cog):
             embed_near = discord.Embed(title=f'People near your coords {x}/{z}:',
                                        description='Coords are in format: x, z, y')
             for match in matched_rows:
-                embed_near.add_field(name=f'{self.bot.get_user(match[0]).name}\'s base',
+                embed_near.add_field(name=f'{self.bot.get_user(match[0]).display_name}\'s base',
                                      value=f'{match[1]}')
             await ctx.send(embed=embed_near)
 
     @commands.command()
-    async def coordel(self, ctx, x: int, z: int, y=62):
-        """Deletes the coords mentioned (x)(z)(y defaults to 62 if not stated)
-         in the message from the database of the author
-        e.g: $coordel 45 45 62"""
+    async def coordel(self, ctx):
+        """Deletes the coords that the user chooses from the multiple choice embed"""
         await ctx.message.delete()
-        ints = [x, z, y]
-        str_of_coords = "/".join([str(i) for i in ints])
+        async with aiosqlite.connect('coorddata') as db:
+            async with db.execute("""SELECT base_coords FROM coords WHERE user_id=? AND guild_id=?""",
+                                  (ctx.author.id, ctx.guild.id)) as cursor:
+                author_coords = await cursor.fetchall()
+        multiple_choice = BotMultipleChoice(ctx, [coords[0] for coords in author_coords],
+                                            "Select the coordinates you wish to delete")
+        await multiple_choice.run()
         confirmation = BotConfirmation(ctx, 0xFFAE00)
-        await confirmation.confirm("Are you sure?")
+        await confirmation.confirm(f"Are you sure you want to delete {multiple_choice.choice}?")
         if confirmation.confirmed:
             await confirmation.update("Confirmed", color=0xFFAE00)
             async with aiosqlite.connect("coorddata") as db:
                 await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=? AND base_coords=?", (
-                    ctx.guild.id, ctx.author.id, str_of_coords))
+                    ctx.guild.id, ctx.author.id, multiple_choice.choice))
                 await db.commit()
             embed_delete = discord.Embed(
-                title=f"{ctx.author.display_name}'s coords deleted", colour=0xFFAE00)
+                title=f"Your coords({multiple_choice.choice}) have been deleted", colour=0xFFAE00)
             await ctx.send(embed=embed_delete)
-            await ctx.send('Now you live nowhere dummy :b')
-
         else:
             await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
-    @commands.command(aliases=['allcds'])
+        await multiple_choice.quit(multiple_choice.choice)
+
+    @commands.command(aliases=['allcrds'])
     async def allcoords(self, ctx):
         """Returns a list of the coords from all users
-         alias: 'allcds'"""
+         alias: 'allcrds'"""
         await ctx.message.delete()
         embed_error = discord.Embed(title='No coords set', colour=0xFF0000)
         async with aiosqlite.connect("coorddata") as db:
@@ -164,28 +167,54 @@ class coordinates(commands.Cog):
                         numbered([f"{ctx.guild.get_member(r[0])}: {r[1]}" for r in rows]),
                         n=10, title=f'Coordinates for {ctx.guild}'))).run()
 
-    @commands.command(aliases=['delucds'])
+    @commands.command(aliases=['delucrds'])
     @commands.has_permissions(administrator=True)
     async def delusercoords(self, ctx, user: discord.Member):
         """*ADMIN ONLY*
-        Users with the administrator permission can delete all coords from the mentioned user
+        Users with the administrator permission can select and delete coords from the mentioned user
         e.g: $delucds @tigersharkpr
-        alias: 'delcds'"""
+        alias: 'delucrds'"""
         await ctx.message.delete()
         confirmation = BotConfirmation(ctx, 0xFFAE00)
-        await confirmation.confirm("Are you sure?")
-        if confirmation.confirmed:
-            await confirmation.update("Confirmed", color=0xFFAE00)
-            async with aiosqlite.connect("coorddata") as db:
-                await db.execute("DELETE FROM coords WHERE guild_id=? and user_id=?", (
-                    ctx.guild.id, user.id,))
-                await db.commit()
-            embed_delete = discord.Embed(
-                title=f"{ctx.author.display_name}'s coords deleted",
-                description=f'Coords deleted by {ctx.author} ', colour=0xFFAE00)
-            await ctx.send(embed=embed_delete)
-        else:
-            await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+        async with aiosqlite.connect("coorddata") as db:
+            async with db.execute("""SELECT base_coords FROM coords WHERE user_id=? AND guild_id=?""",
+                                  (user.id, ctx.guild.id)) as cursor:
+                user_coords = await cursor.fetchall()
+                if not user_coords:
+                    await ctx.send(embed=discord.Embed(title='This user doesn\'t have any registered coords',
+                                                       colour=0xFF0000))
+                    return
+            multiple_choice = BotMultipleChoice(ctx, [coords[0] for coords in user_coords] + ['Delete all coords'],
+                                                "Select the coordinates you wish to delete", colour=0xFFAE00)
+            await multiple_choice.run()
+
+            if multiple_choice.choice == 'Delete all coords':
+                await confirmation.confirm(f"Are you sure you want to delete all coords for this user?")
+                if confirmation.confirmed:
+                    await confirmation.update("Confirmed", color=0xFFAE00)
+                    await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=?", (
+                        ctx.guild.id, user.id))
+                    await db.commit()
+                    embed_delete = discord.Embed(
+                        title=f"All of {user.display_name}'s coords deleted", colour=0xFFAE00)
+                    await ctx.send(embed=embed_delete)
+                else:
+                    await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+
+            elif multiple_choice.choice is not None:
+                await confirmation.confirm(f"Are you sure you want to delete {multiple_choice.choice}?")
+                if confirmation.confirmed:
+                    await confirmation.update("Confirmed", color=0xFFAE00)
+                    await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=? AND base_coords=?", (
+                        ctx.guild.id, user.id, multiple_choice.choice))
+                    await db.commit()
+                    embed_delete = discord.Embed(
+                        title=f"{user.display_name}'s {multiple_choice.choice} coords deleted", colour=0xFFAE00)
+                    await ctx.send(embed=embed_delete)
+                else:
+                    await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+
+            await multiple_choice.quit(multiple_choice.choice)
 
     @commands.has_permissions(administrator=True)
     @commands.command(aliases=['sadmincrds'])
@@ -195,23 +224,26 @@ class coordinates(commands.Cog):
         e.g: '$setadmincrds "end portal" (x) (z) (y defaults to 62 if not stated)
         alias: setadmincrds"""
         await ctx.message.delete()
+        if y > 256:
+            await ctx.send(embed=discord.Embed(title='Y level can\'t be higher than 256 blocks',
+                                               colour=0xFF0000))
+            return
         ints = [x, z, y]
         str_of_coords = "/".join([str(i) for i in ints])
-        async with aiosqlite.connect("coorddata") as db:
-            await db.execute("""CREATE TABLE IF NOT EXISTS admincoords (
-                                    name text,
-                                    coordinates text,
-                                    creator integer,
-                                    guild_id integer
-                                    );""")
-            await db.execute(
-                """INSERT INTO admincoords(name, coordinates, creator, guild_id) VALUES(?,?,?,?)""",
-                (name, str_of_coords, ctx.author.id, ctx.guild.id))
-            await db.commit()
-        embed_set = discord.Embed(
-            title=f'Admin coords for {name} set as {str_of_coords}',
-            description=f'By {ctx.author}', colour=0xFFAE00)
-        await ctx.send(embed=embed_set)
+        confirmation = BotConfirmation(ctx, 0xFFAE00)
+        await confirmation.confirm(f"Are you sure you want to set the admin coords as: {name} x: {x}/ z: {z}/ y:{y}?")
+        if confirmation.confirmed:
+            async with aiosqlite.connect("coorddata") as db:
+                await db.execute(
+                    """INSERT INTO admincoords(name, coordinates, creator, guild_id) VALUES(?,?,?,?)""",
+                    (name, str_of_coords, ctx.author.id, ctx.guild.id))
+                await db.commit()
+            embed_set = discord.Embed(
+                title=f'Admin coords for {name} set as {str_of_coords}',
+                description=f'By {ctx.author}', colour=0xFFAE00)
+            await ctx.send(embed=embed_set)
+        else:
+            await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
     @commands.command(aliases=['alladmincrds'])
     async def alladmincoords(self, ctx):
@@ -233,25 +265,34 @@ class coordinates(commands.Cog):
 
     @commands.has_permissions(administrator=True)
     @commands.command(aliases=['deladmincrds'])
-    async def deleteadmincoords(self, ctx, name: str):
-        """*ADMIN ONLY* Deletes the admin coords belonging to the name stated
-        e.g : $deladmincrds "end portal"
+    async def deleteadmincoords(self, ctx):
+        """*ADMIN ONLY* Deletes the admin coords selected from the multiple choice
         alias: 'deladmincrds'"""
         await ctx.message.delete()
-        confirmation = BotConfirmation(ctx, 0xFFAE00)
-        await confirmation.confirm("Are you sure?")
-        if confirmation.confirmed:
-            async with aiosqlite.connect("coorddata") as db:
-                await db.execute(
-                    """DELETE FROM admincoords WHERE name=? AND guild_id=?""",
-                    (name, ctx.guild.id,))
-                await db.commit()
-            embed_del = discord.Embed(
-                title=f'Admin coords for {name} deleted',
-                description=f'Deleted by {ctx.author}', colour=0xFF0000)
-            await ctx.send(embed=embed_del)
-        else:
-            await confirmation.update("Not confirmed", hide_author=True, color=0xff5555)
+        async with aiosqlite.connect('coorddata') as db:
+            async with db.execute("""SELECT name, coordinates FROM admincoords WHERE guild_id=?""",
+                                  (ctx.guild.id,)) as cursor:
+                admin_coords = await cursor.fetchall()
+            multiple_choice = BotMultipleChoice(ctx, [coords[0] for coords in admin_coords],
+                                                "Select the coords you wish to delete", colour=0xFFAE00)
+            await multiple_choice.run()
+
+            confirmation = BotConfirmation(ctx, 0xFFAE00)
+            if multiple_choice.choice is not None:
+                await confirmation.confirm("Are you sure?")
+                if confirmation.confirmed:
+                    await db.execute(
+                        """DELETE FROM admincoords WHERE name=? AND guild_id=?""",
+                        (multiple_choice.choice, ctx.guild.id,))
+                    await db.commit()
+                    embed_del = discord.Embed(
+                        title=f'Admin coords for {multiple_choice.choice} deleted',
+                        description=f'Deleted by {ctx.author.display_name}', colour=0xFF0000)
+                    await ctx.send(embed=embed_del)
+                else:
+                    await confirmation.update("Not confirmed", hide_author=True, color=0xff5555)
+
+            await multiple_choice.quit(multiple_choice.choice)
 
 
 def setup(bot):
