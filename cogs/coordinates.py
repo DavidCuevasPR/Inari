@@ -1,3 +1,5 @@
+import math
+
 import aiosqlite
 import discord
 from disputils import BotEmbedPaginator, BotConfirmation, BotMultipleChoice
@@ -30,6 +32,11 @@ async def coords_table_create():
     print('Coords table created or already existed')
 
 
+async def calculate_distance(x1, z1, x2, z2):
+    dist = math.sqrt((x2 - x1) ** 2 + (z2 - z1) ** 2)
+    return round(dist)
+
+
 class coordinates(commands.Cog):
     """Commands to create and store coordinates for your Minecraft server"""
 
@@ -43,19 +50,25 @@ class coordinates(commands.Cog):
         alias: 'cs'"""
         await ctx.message.delete()
         ints = [x, z, y]
+        confirmation = BotConfirmation(ctx, 0xFFAE00)
         if y > 256:
             await ctx.send('Y level cant be higher than 256 blocks :b')
             return
         else:
-            str_of_coords = "/".join([str(i) for i in ints])
-            async with aiosqlite.connect("coorddata") as db:
-                await db.execute(
-                    """INSERT INTO coords(user_id, usernick, base_coords, guild_id) VALUES (?,?,?,?)""",
-                    (ctx.author.id, ctx.author.display_name, str_of_coords, ctx.guild.id,))
-                await db.commit()
-            embed_set = discord.Embed(
-                title=f'Coords set for {ctx.author.display_name} as {str_of_coords}', colour=0xFFAE00)
-            await ctx.send(embed=embed_set)
+            await confirmation.confirm(f"Are you sure you want to set your coords as: x: {x}/ z: {z}/ y:{y}?")
+            if confirmation.confirmed:
+                await confirmation.update("Confirmed", color=0xFFAE00)
+                str_of_coords = "/".join([str(i) for i in ints])
+                async with aiosqlite.connect("coorddata") as db:
+                    await db.execute(
+                        """INSERT INTO coords(user_id, usernick, base_coords, guild_id) VALUES (?,?,?,?)""",
+                        (ctx.author.id, ctx.author.display_name, str_of_coords, ctx.guild.id,))
+                    await db.commit()
+                embed_set = discord.Embed(
+                    title=f'Coords set for {ctx.author.display_name} as {str_of_coords}', colour=0xFFAE00)
+                await ctx.send(embed=embed_set)
+            else:
+                await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
     @commands.command()
     async def coords(self, ctx, user: discord.Member = None):
@@ -79,6 +92,35 @@ class coordinates(commands.Cog):
             embed_coords = discord.Embed(title=f"{coords_list}", colour=0xFFAE00)
             embed_coords.set_thumbnail(url=user.avatar_url)
             await ctx.send(embed=embed_coords)
+
+    @commands.command()
+    async def nearme(self, ctx, x: int, z: int, distance: int = 100):
+        """Returns the coords and name of people near your base
+        Set the coords and distance for searching as so: `$nearme 45(x) 50(z) 1000`
+        If no distance is set it will default to 100"""
+        async with aiosqlite.connect('coorddata') as db:
+            async with db.execute("""SELECT user_id, base_coords FROM coords WHERE guild_id=? AND user_id!=?""",
+                                  (ctx.guild.id, ctx.author.id)) as people_cursor:
+                people_rows = await people_cursor.fetchall()
+            int_people_coords = []
+            for tup in people_rows:
+                int_people_coords.append((tuple(tup[1].split('/'))))
+            matched_coords = []
+            for tup in int_people_coords:
+                if await calculate_distance(x, z, int(tup[0]), int(tup[2])) <= distance:
+                    matched_coords.append(f'{tup[0]}/{tup[2]}/{tup[1]}')
+                else:
+                    pass
+            for match in matched_coords:
+                async with db.execute("""SELECT user_id, base_coords FROM coords WHERE guild_id=? AND base_coords=?""",
+                                      (ctx.guild.id, match)) as match_cursor:
+                    matched_rows = await match_cursor.fetchall()
+            embed_near = discord.Embed(title=f'People near your coords {x}/{z}:',
+                                       description='Coords are in format: x, z, y')
+            for match in matched_rows:
+                embed_near.add_field(name=f'{self.bot.get_user(match[0]).name}\'s base',
+                                     value=f'{match[1]}')
+            await ctx.send(embed=embed_near)
 
     @commands.command()
     async def coordel(self, ctx, x: int, z: int, y=62):
