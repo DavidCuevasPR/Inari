@@ -41,6 +41,7 @@ class statistics(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.weekday_check.start()
 
     async def guild_check(self):
         """Checks that all the guilds the bot is in are in the database,
@@ -213,8 +214,11 @@ class statistics(commands.Cog):
         """Checks the weekday for use in the other functions,
          runs those functions and creates the table if it doesnt exist in the database"""
         weekday = datetime.datetime.weekday(datetime.datetime.now())
+        week_dict = {0: 'monday', 1: 'tuesday', 2: 'wednesday', 3: 'thursday', 4: 'friday', 5: 'saturday',
+                     6: 'sunday'}
         await self.guild_check()
         await self.weekday_insert(weekday)
+        print(f'guildgrowth.db updated for {week_dict[weekday]}')
 
     @commands.command()
     async def statson(self, ctx):
