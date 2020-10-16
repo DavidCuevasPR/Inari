@@ -147,7 +147,7 @@ class coordinates(commands.Cog):
         else:
             await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
-        await multiple_choice.quit(multiple_choice.choice)
+        await multiple_choice.quit()
 
     @commands.command(aliases=['allcrds'])
     async def allcoords(self, ctx):
@@ -214,7 +214,7 @@ class coordinates(commands.Cog):
                 else:
                     await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
-            await multiple_choice.quit(multiple_choice.choice)
+            await multiple_choice.quit()
 
     @commands.has_permissions(administrator=True)
     @commands.command(aliases=['sadmincrds'])
@@ -292,7 +292,7 @@ class coordinates(commands.Cog):
                 else:
                     await confirmation.update("Not confirmed", hide_author=True, color=0xff5555)
 
-            await multiple_choice.quit(multiple_choice.choice)
+            await multiple_choice.quit()
 
 
 def setup(bot):
