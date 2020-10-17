@@ -214,10 +214,8 @@ class statistics(commands.Cog):
         """Checks the weekday for use in the other functions,
          runs those functions and creates the table if it doesnt exist in the database"""
         weekday = datetime.datetime.weekday(datetime.datetime.now())
-        date_print = datetime.datetime.now().strftime("%a: %d/%b/%Y")
         await self.guild_check()
         await self.weekday_insert(weekday)
-        print(f'guildgrowth.db updated for: {date_print}')
 
     @commands.command()
     async def statson(self, ctx):
