@@ -69,32 +69,32 @@ class statistics(commands.Cog):
             elif weekday == 1:
                 for guild in self.bot.guilds:
                     await db.execute(
-                        """UPDATE guildgrowth SET tuesday=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), guild.id))
+                        """UPDATE guildgrowth SET tuesday=?, sent=? WHERE guild_id=?""",
+                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
 
             elif weekday == 2:
                 for guild in self.bot.guilds:
                     await db.execute(
-                        """UPDATE guildgrowth SET wednesday=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), guild.id))
+                        """UPDATE guildgrowth SET wednesday=?, sent=? WHERE guild_id=?""",
+                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
 
             elif weekday == 3:
                 for guild in self.bot.guilds:
                     await db.execute(
-                        """UPDATE guildgrowth SET thursday=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), guild.id))
+                        """UPDATE guildgrowth SET thursday=?, sent=? WHERE guild_id=?""",
+                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
 
             elif weekday == 4:
                 for guild in self.bot.guilds:
                     await db.execute(
-                        """UPDATE guildgrowth SET friday=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), guild.id))
+                        """UPDATE guildgrowth SET friday=?, sent=? WHERE guild_id=?""",
+                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
 
             elif weekday == 5:
                 for guild in self.bot.guilds:
                     await db.execute(
-                        """UPDATE guildgrowth SET saturday=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), guild.id))
+                        """UPDATE guildgrowth SET saturday=?, sent=? WHERE guild_id=?""",
+                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
 
             elif weekday == 6:
                 for guild in self.bot.guilds:
