@@ -237,7 +237,6 @@ class statistics(commands.Cog):
         await ctx.message.delete()
         weekday = datetime.datetime.weekday(datetime.datetime.now())
         await self.guild_check()
-        await self.weekday_insert(weekday)
         week = {0: 'monday', 1: 'tuesday', 2: 'wednesday', 3: 'thursday', 4: 'friday', 5: 'saturday', 6: 'sunday'}
         async with aiosqlite.connect('guildgrowth.db') as db:
             async with db.execute("""SELECT monday, tuesday, wednesday, thursday, friday, saturday, sunday, stats_on 
