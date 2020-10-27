@@ -1,0 +1,5 @@
+discord~=1.0.1
+aiosqlite~=0.13.0
+matplotlib~=3.3.2
+numpy~=1.19.2
+disputils~=0.1.3
