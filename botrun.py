@@ -5,10 +5,14 @@ import discord
 from discord.utils import find
 from discord.ext import commands
 
-from cogs import stats, coordinates
+from cogs import stats
 
 token = open('token', 'r').read()
-bot = commands.Bot(command_prefix='$')
+bot = commands.Bot(command_prefix='$',
+                   intents=discord.Intents(guilds=True,
+                                           messages=True,
+                                           members=True,
+                                           reactions=True))
 bot.remove_command('help')
 
 
@@ -16,8 +20,6 @@ bot.remove_command('help')
 async def on_ready():
     await bot.change_presence(status=discord.Status.online, activity=discord.Game(name='$help'))
     await stats.weekday_table_create()
-    await coordinates.coords_table_create()
-    await coordinates.admincoords_table_create()
     print('Inari is ready B)')
 
 
@@ -28,26 +30,6 @@ async def on_guild_join(guild):
         await general.send(embed=discord.Embed(title="Hello, I'm Inari!",
                                                description='Do `$help` to see my modules!',
                                                colour=0xFFAE00).set_thumbnail(url=bot.user.avatar_url))
-
-
-@bot.event
-async def on_message(message: discord.Message):
-    if message.author.bot:
-        return
-    if message.content.startswith('$'):
-        rand = random.randint(0, 20)
-        GoT = [13, 14, 15, 16, 17]
-        Minecraft = [3, 4, 5, 6, 7]
-        if rand in GoT:
-            await bot.change_presence(
-                status=discord.Status.online, activity=discord.Game(name='Ghost Of Tsushima'))
-        if rand in Minecraft:
-            await bot.change_presence(
-                status=discord.Status.online, activity=discord.Game(name='Minecraft'))
-        if rand not in GoT and Minecraft:
-            await bot.change_presence(
-                status=discord.Status.online, activity=discord.Game(name='$help'))
-    await bot.process_commands(message)
 
 
 @bot.command()
