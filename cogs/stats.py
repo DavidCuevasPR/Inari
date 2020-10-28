@@ -42,6 +42,12 @@ class statistics(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.weekday_check.start()
+        bot.loop.create_task(self.startup())
+
+    async def startup(self):
+        async with aiosqlite.connect("guildgrowth.db") as db:
+            await weekday_table_create()
+            await db.commit()
 
     async def guild_check(self):
         """Checks that all the guilds the bot is in are in the database,
@@ -64,43 +70,43 @@ class statistics(commands.Cog):
                 for guild in self.bot.guilds:
                     await db.execute(
                         """UPDATE guildgrowth SET monday=?, sent=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
+                        (self.bot.get_guild(guild.id).member_count, 'No', guild.id))
 
             elif weekday == 1:
                 for guild in self.bot.guilds:
                     await db.execute(
                         """UPDATE guildgrowth SET tuesday=?, sent=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
+                        (self.bot.get_guild(guild.id).member_count, 'No', guild.id))
 
             elif weekday == 2:
                 for guild in self.bot.guilds:
                     await db.execute(
                         """UPDATE guildgrowth SET wednesday=?, sent=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
+                        (self.bot.get_guild(guild.id).member_count, 'No', guild.id))
 
             elif weekday == 3:
                 for guild in self.bot.guilds:
                     await db.execute(
                         """UPDATE guildgrowth SET thursday=?, sent=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
+                        (self.bot.get_guild(guild.id).member_count, 'No', guild.id))
 
             elif weekday == 4:
                 for guild in self.bot.guilds:
                     await db.execute(
                         """UPDATE guildgrowth SET friday=?, sent=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
+                        (self.bot.get_guild(guild.id).member_count, 'No', guild.id))
 
             elif weekday == 5:
                 for guild in self.bot.guilds:
                     await db.execute(
                         """UPDATE guildgrowth SET saturday=?, sent=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), 'No', guild.id))
+                        (self.bot.get_guild(guild.id).member_count, 'No', guild.id))
 
             elif weekday == 6:
                 for guild in self.bot.guilds:
                     await db.execute(
                         """UPDATE guildgrowth SET sunday=? WHERE guild_id=?""",
-                        (len(self.bot.get_guild(guild.id).members), guild.id))
+                        (self.bot.get_guild(guild.id).member_count, guild.id))
                     async with db.execute(
                             """SELECT stats_on, sent FROM guildgrowth WHERE guild_id=?""",
                             (guild.id,)) as first_cursor:
@@ -203,10 +209,10 @@ class statistics(commands.Cog):
                                                          ('Yes', guild.id,))
             await db.commit()
 
-    @tasks.loop(hours=6)
+    @tasks.loop(seconds=6)
     async def weekday_check(self):
         """Checks the weekday and updates the statistics database"""
-        weekday = datetime.datetime.weekday(datetime.datetime.now())
+        weekday = 0  # datetime.datetime.weekday(datetime.datetime.now())
         await self.guild_check()
         await self.weekday_insert(weekday)
 
