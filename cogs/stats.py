@@ -209,10 +209,10 @@ class statistics(commands.Cog):
                                                          ('Yes', guild.id,))
             await db.commit()
 
-    @tasks.loop(seconds=6)
+    @tasks.loop(hours=6)
     async def weekday_check(self):
         """Checks the weekday and updates the statistics database"""
-        weekday = 0  # datetime.datetime.weekday(datetime.datetime.now())
+        weekday = datetime.datetime.weekday(datetime.datetime.now())
         await self.guild_check()
         await self.weekday_insert(weekday)
 
