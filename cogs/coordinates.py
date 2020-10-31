@@ -25,6 +25,26 @@ class AdminCoords:
     guild_id: int
 
 
+@dataclass
+class Shop:
+    user_id: int
+    name: str
+    items: str
+    guild_id: int
+
+
+async def shop_table_create():
+    async with aiosqlite.connect("coorddata.db") as db:
+        await db.execute("""CREATE TABLE IF NOT EXISTS shops (
+                                user_id integer,
+                                name text,
+                                items text,
+                                guild_id integer
+                                );""")
+        await db.commit()
+    print('Shops table created or already existed')
+
+
 async def admincoords_table_create():
     async with aiosqlite.connect("coorddata.db") as db:
         await db.execute("""CREATE TABLE IF NOT EXISTS admincoords (
@@ -56,16 +76,19 @@ async def calculate_distance(x1, z1, x2, z2):
 
 class coordinates(commands.Cog):
     """Commands to create and store coordinates for your Minecraft server"""
+
     def __init__(self, bot):
         self.bot = bot
         self.usercoords = []
         self.admincoords = []
+        self.shops = []
         bot.loop.create_task(self.startup())
 
     async def startup(self):
         async with aiosqlite.connect("coorddata.db") as db:
             await coords_table_create()
             await admincoords_table_create()
+            await shop_table_create()
             await db.commit()
 
             async with db.execute("""SELECT * FROM coords""") as cursor:
@@ -84,8 +107,16 @@ class coordinates(commands.Cog):
                                                 creator_id=admin_tup[2], guild_id=admin_tup[3])
                         self.admincoords.append(adm_coord)
 
+            async with db.execute("""SELECT * FROM shops""") as cursor:
+                shop_rows = await cursor.fetchall()
+                if shop_rows:
+                    for shop_tup in shop_rows:
+                        shop = Shop(user_id=shop_tup[0], name=shop_tup[1],
+                                    items=shop_tup[2], guild_id=shop_tup[3])
+                        self.shops.append(shop)
+
     @commands.command(aliases=['cs'])
-    async def coordset(self, ctx, x: int, z: int, y=62, name=''):
+    async def coordset(self, ctx: commands.Context, x: int, z: int, y=62, name=''):
         """
         Sets the coord of the user using format and a name(base, spawner, etc)
         e.g : $coordset <x> <z> <y> <name>
@@ -117,7 +148,7 @@ class coordinates(commands.Cog):
             await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
     @commands.command()
-    async def coords(self, ctx, user: discord.Member = None):
+    async def coords(self, ctx: commands.Context, user: discord.Member = None):
         """
         Returns the coords of the user mentioned, if no user is mentioned, returns the author's coords
         e.g: $coords @ruffdelmo
@@ -125,24 +156,24 @@ class coordinates(commands.Cog):
         await ctx.message.delete()
         if not user:
             user = ctx.author
-        if user.id not in [ucoords.user_id for ucoords in self.usercoords if ucoords.guild_id == ctx.guild.id]:
-            embed_nocrds = discord.Embed(
-                title=f'No coords set for {user.display_name}', colour=0xFF0000)
+        embed_nocrds = discord.Embed(
+            title=f'No coords set for {user.display_name}', colour=0xFF0000)
+        gen = [
+            ucoords.base_coords + ' ' + ucoords.name + '\n'
+            for ucoords in self.usercoords if ucoords.user_id == user.id and ucoords.guild_id == ctx.guild.id
+        ]
+        if not gen:
             await ctx.send(embed=embed_nocrds)
-        else:
-            gen = [
-                ucoords.base_coords + ' ' + ucoords.name + '\n'
-                for ucoords in self.usercoords if ucoords.user_id == user.id and ucoords.guild_id == ctx.guild.id
-            ]
-            coords_list = f"{user.display_name}'s coords:\n(x)/(z)/(y)/(name)\n"
-            for coords in gen:
-                coords_list += coords
-            embed_coords = discord.Embed(title=f"{coords_list}", colour=0xFFAE00)
-            embed_coords.set_thumbnail(url=user.avatar_url)
-            await ctx.send(embed=embed_coords)
+            return
+        coords_list = f"{user.display_name}'s coords:\n(x)/(z)/(y)/(name)\n"
+        for coords in gen:
+            coords_list += coords
+        embed_coords = discord.Embed(title=f"{coords_list}", colour=0xFFAE00)
+        embed_coords.set_thumbnail(url=user.avatar_url)
+        await ctx.send(embed=embed_coords)
 
     @commands.command()
-    async def nearme(self, ctx, x: int, z: int, distance: int = 100):
+    async def nearme(self, ctx: commands.Context, x: int, z: int, distance: int = 100):
         """
         Returns the coords and name of people near your base
         Set the coords and distance for searching as so:
@@ -180,37 +211,96 @@ class coordinates(commands.Cog):
         await ctx.send(embed=embed_near)
 
     @commands.command()
-    async def coordel(self, ctx):
+    async def delcoord(self, ctx: commands.Context, user: discord.Member = None):
         """
         Deletes the coords that the user chooses from the multiple choice embed
+        ADMIN ONLY:
+        Do `delcoord @user` to delete shops for that user
         """
-        await ctx.message.delete()
-        author_coords = [
-            (ucoords.base_coords, ucoords.name)
-            for ucoords in self.usercoords if ucoords.user_id == ctx.author.id and ucoords.guild_id == ctx.guild.id
-        ]
-        multiple_choice = BotMultipleChoice(ctx, [coords[0] + ' ' + coords[1] for coords in author_coords],
-                                            "Select the coordinates you wish to delete", colour=0xFFAE00)
-        await multiple_choice.run()
-        await multiple_choice.quit()
-        if multiple_choice.choice:
+        if user:
+            if ('administrator', True) not in ctx.author.guild_permissions:
+                await ctx.send(embed=discord.Embed(title="You don't have the administrator permission!"))
+                return
             confirmation = BotConfirmation(ctx, 0xFFAE00)
-            await confirmation.confirm(f"Are you sure you want to delete {multiple_choice.choice}?")
-            if confirmation.confirmed:
-                for ucoords in self.usercoords:
-                    if (ucoords.base_coords + ' ' + ucoords.name == multiple_choice.choice
-                            and ucoords.guild_id == ctx.guild.id and ucoords.user_id == ctx.author.id):
-                        self.usercoords.remove(ucoords)
-                async with aiosqlite.connect("coorddata.db") as db:
-                    await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=? AND base_coords=?", (
-                        ctx.guild.id, ctx.author.id, multiple_choice.choice))
-                    await db.commit()
-                await confirmation.update(f"Your coords({multiple_choice.choice}), have been deleted", color=0xFFAE00)
-            else:
-                await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+            delcoords_gen = [
+                (ucoords.base_coords,)
+                for ucoords in self.usercoords if ucoords.user_id == user.id and ucoords.guild_id == ctx.guild.id
+            ]
+            if not delcoords_gen:
+                await ctx.send(embed=discord.Embed(title="This user doesn't have any registered coords",
+                                                   colour=0xFF0000))
+                return
+            multiple_choice = BotMultipleChoice(ctx,
+                                                [coords[0] for coords in delcoords_gen] + ['Delete all coords'],
+                                                "Select the coordinates you wish to delete", colour=0xFFAE00)
+            await multiple_choice.run()
+            await multiple_choice.quit()
+            async with aiosqlite.connect("coorddata.db") as db:
+                if multiple_choice.choice == 'Delete all coords':
+                    await confirmation.confirm(f"Are you sure you want to delete all coords for this user?")
+                    if confirmation.confirmed:
+                        await confirmation.update("Confirmed", color=0xFFAE00)
+                        await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=?", (
+                            ctx.guild.id, user.id))
+                        await db.commit()
+                        for ucoords in self.usercoords:
+                            if ucoords.user_id == user.id and ucoords.guild_id == ctx.guild.id:
+                                self.usercoords.remove(ucoords)
+                        embed_delete = discord.Embed(
+                            title=f"All of {user.display_name}'s coords deleted",
+                            colour=0xFFAE00)
+                        await ctx.send(embed=embed_delete)
+                    else:
+                        await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+
+                elif multiple_choice.choice:
+                    await confirmation.confirm(f"Are you sure you want to delete {multiple_choice.choice}?")
+                    if confirmation.confirmed:
+                        await confirmation.update("Confirmed", color=0xFFAE00)
+                        await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=? AND base_coords=?", (
+                            ctx.guild.id, user.id, multiple_choice.choice))
+                        await db.commit()
+                        for ucoords in self.usercoords:
+                            if (ucoords.base_coords == multiple_choice.choice
+                                    and ucoords.user_id == user.id and ucoords.guild_id == ctx.guild.id):
+                                self.usercoords.remove(ucoords)
+                        embed_delete = discord.Embed(
+                            title=f"{user.display_name}'s {multiple_choice.choice} coords deleted", colour=0xFFAE00)
+                        await ctx.send(embed=embed_delete)
+                    else:
+                        await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+        else:
+            author_coords = [
+                ucoords.base_coords
+                for ucoords in self.usercoords if ucoords.user_id == ctx.author.id and ucoords.guild_id == ctx.guild.id
+            ]
+            if not author_coords:
+                await ctx.send(embed=discord.Embed(title='You have no coords set!',
+                                                   colour=0xFF0000))
+                return
+            multiple_choice = BotMultipleChoice(ctx, author_coords,
+                                                "Select the coordinates you wish to delete", colour=0xFFAE00)
+            await multiple_choice.run()
+            await multiple_choice.quit()
+            if multiple_choice.choice:
+                confirmation = BotConfirmation(ctx, 0xFFAE00)
+                await confirmation.confirm(f"Are you sure you want to delete {multiple_choice.choice}?")
+                if confirmation.confirmed:
+                    for ucoords in self.usercoords:
+                        if (ucoords.base_coords == multiple_choice.choice
+                                and ucoords.guild_id == ctx.guild.id and ucoords.user_id == ctx.author.id):
+                            self.usercoords.remove(ucoords)
+                    async with aiosqlite.connect("coorddata.db") as db:
+                        await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=? AND base_coords=?", (
+                            ctx.guild.id, ctx.author.id, multiple_choice.choice))
+                        await db.commit()
+                    await confirmation.update(f"Your coords({multiple_choice.choice}), have been deleted",
+                                              color=0xFFAE00)
+                else:
+                    await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
     @commands.command(aliases=['allcrds'])
-    async def allcoords(self, ctx):
+    async def allcoords(self, ctx: commands.Context):
         """
         Returns a list of the coords from all users
         alias: 'allcrds'
@@ -223,74 +313,16 @@ class coordinates(commands.Cog):
         ]
         if not allcoords_gen:
             await ctx.send(embed=embed_error)
+            return
         else:
             await (BotEmbedPaginator(ctx, pages(
                 numbered([f"{ctx.guild.get_member(tup[0]).display_name}: {tup[1] + ' / ' + tup[2]}"
                           for tup in allcoords_gen]),
                 n=10, title=f'Coordinates for {ctx.guild.name}'))).run()
 
-    @commands.command(aliases=['delucrds'])
-    @commands.has_permissions(administrator=True)
-    async def delusercoords(self, ctx, user: discord.Member):
-        """
-        *ADMIN ONLY*
-        Users with the administrator permission can select and delete coords from the mentioned user
-        e.g: $delucds @tigersharkpr
-        alias: 'delucrds'
-        """
-        await ctx.message.delete()
-        confirmation = BotConfirmation(ctx, 0xFFAE00)
-        delcoords_gen = [
-            (ucoords.base_coords,)
-            for ucoords in self.usercoords if ucoords.user_id == user.id and ucoords.guild_id == ctx.guild.id
-        ]
-        if not delcoords_gen:
-            await ctx.send(embed=discord.Embed(title="This user doesn't have any registered coords",
-                                               colour=0xFF0000))
-            return
-        multiple_choice = BotMultipleChoice(ctx,
-                                            [coords[0] for coords in delcoords_gen] + ['Delete all coords'],
-                                            "Select the coordinates you wish to delete", colour=0xFFAE00)
-        await multiple_choice.run()
-        await multiple_choice.quit()
-        async with aiosqlite.connect("coorddata.db") as db:
-            if multiple_choice.choice == 'Delete all coords':
-                await confirmation.confirm(f"Are you sure you want to delete all coords for this user?")
-                if confirmation.confirmed:
-                    await confirmation.update("Confirmed", color=0xFFAE00)
-                    await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=?", (
-                        ctx.guild.id, user.id))
-                    await db.commit()
-                    for ucoords in self.usercoords:
-                        if ucoords.user_id == user.id and ucoords.guild_id == ctx.guild.id:
-                            self.usercoords.remove(ucoords)
-                    embed_delete = discord.Embed(
-                        title=f"All of {user.display_name}'s coords deleted",
-                        colour=0xFFAE00)
-                    await ctx.send(embed=embed_delete)
-                else:
-                    await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
-
-            elif multiple_choice.choice:
-                await confirmation.confirm(f"Are you sure you want to delete {multiple_choice.choice}?")
-                if confirmation.confirmed:
-                    await confirmation.update("Confirmed", color=0xFFAE00)
-                    await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=? AND base_coords=?", (
-                        ctx.guild.id, user.id, multiple_choice.choice))
-                    await db.commit()
-                    for ucoords in self.usercoords:
-                        if (ucoords.base_coords == multiple_choice.choice
-                                and ucoords.user_id == user.id and ucoords.guild_id == ctx.guild.id):
-                            self.usercoords.remove(ucoords)
-                    embed_delete = discord.Embed(
-                        title=f"{user.display_name}'s {multiple_choice.choice} coords deleted", colour=0xFFAE00)
-                    await ctx.send(embed=embed_delete)
-                else:
-                    await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
-
     @commands.has_permissions(administrator=True)
     @commands.command(aliases=['setadmcrds'])
-    async def setadmincoords(self, ctx, name: str, x: int, z: int, y=62):
+    async def setadmincoords(self, ctx: commands.Context, name: str, x: int, z: int, y=62):
         """
         *ADMIN ONLY* Sets a server coordinate by an admin, e.g: end portal coords, spawn, etc
         If the name has more than 1 word please wrap it in double quotes, e.g: "Mining District"
@@ -323,7 +355,7 @@ class coordinates(commands.Cog):
             await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
     @commands.command(aliases=['alladmincrds'])
-    async def alladmincoords(self, ctx):
+    async def alladmincoords(self, ctx: commands.Context):
         """
         Returns all the admin coords of the current server
         alias: 'alladmincrds'
@@ -336,6 +368,7 @@ class coordinates(commands.Cog):
         ]
         if not alladm_gen:
             await ctx.send(embed=embed_error)
+            return
         else:
             await (BotEmbedPaginator(ctx, pages(
                 numbered(
@@ -345,7 +378,7 @@ class coordinates(commands.Cog):
 
     @commands.has_permissions(administrator=True)
     @commands.command(aliases=['deladmincrds'])
-    async def deleteadmincoords(self, ctx):
+    async def deleteadmincoords(self, ctx: commands.Context):
         """
         *ADMIN ONLY* Deletes the admin coords selected from the multiple choice
         alias: 'deladmincrds'
@@ -377,6 +410,170 @@ class coordinates(commands.Cog):
                     await ctx.send(embed=embed_del)
                 else:
                     await confirmation.update("Not confirmed", hide_author=True, color=0xff5555)
+
+    @commands.command(aliases=['ss'])
+    async def shopset(self, ctx: commands.Context, name: str, *items: str):
+        """
+        Sets a shop
+        shopset <name of shop> <items>
+        Example:
+        $shopset WoodShop oak birch spruce acacia
+        Wrap <name> in " "  if it uses spaces
+        """
+        await ctx.message.delete()
+        slash_sep_items = '/'.join(items)
+        confirmation = BotConfirmation(ctx, 0xFFAE00)
+        await confirmation.confirm(f"Are you sure you want to set your shop as:\n"
+                                   f"Name: {name} / Sells: {slash_sep_items}")
+        if confirmation.confirmed:
+            shop = Shop(user_id=ctx.author.id, name=name, items=slash_sep_items, guild_id=ctx.guild.id)
+            self.shops.append(shop)
+            async with aiosqlite.connect("coorddata.db") as db:
+                await db.execute("""INSERT INTO shops (user_id, name, items, guild_id) VALUES(?,?,?,?)""",
+                                 (ctx.author.id, name, slash_sep_items, ctx.guild.id))
+                await db.commit()
+            await confirmation.update(f'Shop for {ctx.author.display_name} set as:\n'
+                                      f'Name: {name} / Sells: {slash_sep_items}',
+                                      color=0xFFAE00)
+        else:
+            await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+
+    @commands.command()
+    async def shops(self, ctx: commands.Context, user: discord.Member = None):
+        """
+        Let's you see the mentioned user's shops
+        shops <user>
+        Example:
+        $shops @ruffdelmo
+        """
+        await ctx.message.delete()
+        if not user:
+            user = ctx.author
+        embed_nocrds = discord.Embed(title=f"{user.display_name} doesn't own any shops",
+                                     colour=0xFF0000)
+        shops_gen = [
+            (shops.name, shops.items)
+            for shops in self.shops if shops.user_id == user.id and shops.guild_id == ctx.guild.id
+        ]
+        if not shops_gen:
+            await ctx.send(embed=embed_nocrds)
+            return
+        shops_e = discord.Embed(title=f"Shop's owned by {user.display_name}",
+                                colour=0xFFAE00)
+        shops_e.set_thumbnail(url=user.avatar_url)
+        for shop in shops_gen:
+            shops_e.add_field(name=shop[0], value=shop[1], inline=False)
+        await ctx.send(embed=shops_e)
+
+    @commands.command()
+    async def delshop(self, ctx: commands.Context, user: discord.Member = None):
+        """
+        Deletes the shops that the user chooses from the multiple choice embed
+        ADMIN ONLY:
+        Do `delshop @user` to delete shops for that user
+        """
+        await ctx.message.delete()
+        if user:
+            if ('administrator', True) not in ctx.author.guild_permissions:
+                await ctx.send(embed=discord.Embed(title="You don't have the administrator permission!"))
+                return
+            delshops_gen = [
+                shop.name
+                for shop in self.usercoords if shop.user_id == user.id and shop.guild_id == ctx.guild.id
+            ]
+            if not delshops_gen:
+                await ctx.send(embed=discord.Embed(title="This user doesn't have any registered shops",
+                                                   colour=0xFF0000))
+                return
+            confirmation = BotConfirmation(ctx, 0xFFAE00)
+            multiple_choice = BotMultipleChoice(
+                ctx,
+                delshops_gen + ['Delete all shops'],
+                "Select the coordinates you wish to delete",
+                colour=0xFFAE00
+            )
+            await multiple_choice.run()
+            await multiple_choice.quit()
+            async with aiosqlite.connect("coorddata.db") as db:
+                if multiple_choice.choice == 'Delete all shops':
+                    await confirmation.confirm(f"Are you sure you want to delete all shops for this user?")
+                    if confirmation.confirmed:
+                        await confirmation.update("Confirmed", color=0xFFAE00)
+                        await db.execute("DELETE FROM shops WHERE guild_id=? AND user_id=?", (
+                            ctx.guild.id, user.id))
+                        await db.commit()
+                        for shop in self.shops:
+                            if shop.user_id == user.id and shop.guild_id == ctx.guild.id:
+                                self.usercoords.remove(shop)
+                        embed_delete = discord.Embed(
+                            title=f"All of {user.display_name}'s shops deleted",
+                            colour=0xFFAE00)
+                        await ctx.send(embed=embed_delete)
+                    else:
+                        await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+
+                elif multiple_choice.choice:
+                    await confirmation.confirm(f"Are you sure you want to delete {multiple_choice.choice}?")
+                    if confirmation.confirmed:
+                        await confirmation.update(f"{user.display_name}'s ({multiple_choice.choice}) shop deleted",
+                                                  color=0xFFAE00)
+                        await db.execute("DELETE FROM shops WHERE guild_id=? AND user_id=? AND name=?",
+                                         (ctx.guild.id, user.id, multiple_choice.choice))
+                        await db.commit()
+                        for shop in self.shops:
+                            if (shop.name == multiple_choice.choice
+                                    and shop.user_id == user.id and shop.guild_id == ctx.guild.id):
+                                self.usercoords.remove(shop)
+                    else:
+                        await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+        else:
+            author_shops = [
+                shop.name
+                for shop in self.shops if shop.user_id == ctx.author.id and shop.guild_id == ctx.guild.id
+            ]
+            if not author_shops:
+                await ctx.send(embed=discord.Embed(title='You have no shops set!',
+                                                   colour=0xFF0000))
+                return
+            multiple_choice = BotMultipleChoice(ctx, author_shops,
+                                                "Select the shop you wish to delete",
+                                                colour=0xFFAE00)
+            await multiple_choice.run()
+            await multiple_choice.quit()
+            if multiple_choice.choice:
+                confirmation = BotConfirmation(ctx, 0xFFAE00)
+                await confirmation.confirm(f"Are you sure you want to delete {multiple_choice.choice}?")
+                if confirmation.confirmed:
+                    for shop in self.shops:
+                        if (shop.name == multiple_choice.choice and shop.guild_id == ctx.guild.id
+                                and shop.user_id == ctx.author.id):
+                            self.shops.remove(shop)
+                    async with aiosqlite.connect("coorddata.db") as db:
+                        await db.execute("""DELETE FROM shops WHERE user_id=? AND name=? AND guild_id=?""",
+                                         (ctx.author.id, multiple_choice.choice, ctx.guild.id))
+                        await db.commit()
+                        await confirmation.update(f"Your shop: ({multiple_choice.choice}) has been deleted",
+                                                  color=0xFFAE00)
+                else:
+                    await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
+
+    @commands.command()
+    async def allshops(self, ctx: commands.Context):
+        """
+        Shows all shops for the server
+        """
+        all_gen = [
+            (shop.name, shop.items, shop.user_id)
+            for shop in self.shops if shop.guild_id == ctx.guild.id
+        ]
+        if not all_gen:
+            await ctx.send(embed=discord.Embed(title="No shops set",
+                                               colour=0xFF0000))
+            return
+        await (BotEmbedPaginator(ctx, pages(
+            numbered([f"Name: {tup[0]} | Items: {tup[1]} | Owner: {ctx.guild.get_member(tup[2]).display_name}"
+                      for tup in all_gen]),
+            n=10, title=f'Coordinates for {ctx.guild.name}'))).run()
 
 
 def setup(bot):
