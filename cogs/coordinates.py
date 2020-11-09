@@ -125,16 +125,13 @@ class coordinates(commands.Cog):
         overworld_coords = f"{x // 8} / {z // 8}"
         coords_emb = discord.Embed(title=f'Converted coords',
                                    colour=0xFFAE00,
-                                   description="Coords are in format: x / z"
-                                   )
+                                   description="Coords are in format: x / z")
         coords_emb.add_field(name="Overworld to Nether",
                              value=f"{x} / {z} ---> {nether_coords}",
-                             inline=False
-                             )
+                             inline=False)
         coords_emb.add_field(name="Nether to Overworld",
                              value=f"{x} / {z} ---> {overworld_coords}",
-                             inline=False
-                             )
+                             inline=False)
         await ctx.send(embed=coords_emb)
 
     @commands.command(aliases=['cs'])
