@@ -119,7 +119,7 @@ class coordinates(commands.Cog):
     async def convert(self, ctx: commands.Context, x: int, z: int):
         """
         Converts the entered x and z coords into overworld and nether coords
-        e.g : $convert <x> <z>
+        **e.g**: `$convert <x> <z>`
         """
         nether_coords = f"{x * 8} / {z * 8}"
         overworld_coords = f"{x // 8} / {z // 8}"
@@ -138,8 +138,7 @@ class coordinates(commands.Cog):
     async def coordset(self, ctx: commands.Context, x: int, z: int, y=62, name=''):
         """
         Sets the coord of the user using format and a name(base, spawner, etc)
-        e.g : $coordset <x> <z> <y> <name>
-        alias: 'cs'
+        **e.g**: `$coordset <x> <z> <y> <name>`
         """
         await ctx.message.delete()
         ints = [x, z, y]
@@ -170,7 +169,7 @@ class coordinates(commands.Cog):
     async def coords(self, ctx: commands.Context, user: discord.Member = None):
         """
         Returns the coords of the user mentioned, if no user is mentioned, returns the author's coords
-        e.g: $coords @ruffdelmo
+        **e.g**: `$coords <@user>`
         """
         await ctx.message.delete()
         if not user:
@@ -178,7 +177,7 @@ class coordinates(commands.Cog):
         embed_nocrds = discord.Embed(
             title=f'No coords set for {user.display_name}', colour=0xFF0000)
         gen = [
-            ucoords.base_coords + ' ' + ucoords.name + '\n'
+            (ucoords.base_coords, ucoords.name)
             for ucoords in self.usercoords if ucoords.user_id == user.id and ucoords.guild_id == ctx.guild.id
         ]
         if not gen:
@@ -186,7 +185,7 @@ class coordinates(commands.Cog):
             return
         coords_list = f"{user.display_name}'s coords:\n(x)/(z)/(y)/(name)\n"
         for coords in gen:
-            coords_list += coords
+            coords_list += coords[0] + ' | ' + coords[1] + '\n'
         embed_coords = discord.Embed(title=f"{coords_list}", colour=0xFFAE00)
         embed_coords.set_thumbnail(url=user.avatar_url)
         await ctx.send(embed=embed_coords)
@@ -195,9 +194,8 @@ class coordinates(commands.Cog):
     async def nearme(self, ctx: commands.Context, x: int, z: int, distance: int = 100):
         """
         Returns the coords and name of people near your base
-        Set the coords and distance for searching as so:
-        `$nearme 45(x) 50(z) 1000(distance)`
-        If no distance is set it will default to 100
+        **e.g**:`$nearme <x> <z> <distance>`
+        __<distance> defaults to 100__
         """
         people_gen = [
             (ucoords.user_id, ucoords.base_coords)
@@ -233,8 +231,8 @@ class coordinates(commands.Cog):
     async def delcoord(self, ctx: commands.Context, user: discord.Member = None):
         """
         Deletes the coords that the user chooses from the multiple choice embed
-        ADMIN ONLY:
-        Do `delcoord @user` to delete shops for that user
+        **ADMIN ONLY**:
+        Do `delcoord <@user>` to delete shops for that user
         """
         if user:
             if ('administrator', True) not in ctx.author.guild_permissions:
@@ -318,11 +316,10 @@ class coordinates(commands.Cog):
                 else:
                     await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
-    @commands.command(aliases=['allcrds'])
+    @commands.command()
     async def allcoords(self, ctx: commands.Context):
         """
         Returns a list of the coords from all users
-        alias: 'allcrds'
         """
         await ctx.message.delete()
         embed_error = discord.Embed(title='No coords set', colour=0xFF0000)
@@ -340,13 +337,14 @@ class coordinates(commands.Cog):
                 n=10, title=f'Coordinates for {ctx.guild.name}'))).run()
 
     @commands.has_permissions(administrator=True)
-    @commands.command(aliases=['setadmcrds'])
+    @commands.command(aliases=['setadmin'])
     async def setadmincoords(self, ctx: commands.Context, name: str, x: int, z: int, y=62):
         """
-        *ADMIN ONLY* Sets a server coordinate by an admin, e.g: end portal coords, spawn, etc
-        If the name has more than 1 word please wrap it in double quotes, e.g: "Mining District"
-        e.g: '$setadmincrds "end portal" (x) (z) (y defaults to 62 if not stated)
-        alias: setadmincrds
+        **ADMIN ONLY**
+        Sets a server coordinate(end portal, spawn, etc) by an admin
+        If the name uses spaces wrap it in " "
+        **e.g**: '$setadmincrds <name> <x> <z> <y>`
+        __<y> defaults to 62 if not stated__
         """
         await ctx.message.delete()
         if y > 256:
@@ -373,11 +371,10 @@ class coordinates(commands.Cog):
         else:
             await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
-    @commands.command(aliases=['alladmincrds'])
+    @commands.command(aliases=['alladmin'])
     async def alladmincoords(self, ctx: commands.Context):
         """
         Returns all the admin coords of the current server
-        alias: 'alladmincrds'
         """
         await ctx.message.delete()
         embed_error = discord.Embed(title='No admin coords set', colour=0xFF0000)
@@ -396,11 +393,11 @@ class coordinates(commands.Cog):
                 ), n=10, title=f'Admin coordinates for {ctx.guild.name}\n (name)(x)(z)(y)'))).run()
 
     @commands.has_permissions(administrator=True)
-    @commands.command(aliases=['deladmincrds'])
+    @commands.command(aliases=['deladmin'])
     async def deleteadmincoords(self, ctx: commands.Context):
         """
-        *ADMIN ONLY* Deletes the admin coords selected from the multiple choice
-        alias: 'deladmincrds'
+        **ADMIN ONLY**
+        Deletes the admin coords selected from the multiple choice
         """
         await ctx.message.delete()
         deladmin_gen = [
@@ -434,10 +431,8 @@ class coordinates(commands.Cog):
     async def shopset(self, ctx: commands.Context, name: str, *items: str):
         """
         Sets a shop
-        shopset <name of shop> <items>
-        Example:
-        $shopset WoodShop oak birch spruce acacia
-        Wrap <name> in " "  if it uses spaces
+        **e.g**: $shopset <name> <items it sells>
+        __Wrap <name> in " "  if it uses spaces__
         """
         await ctx.message.delete()
         slash_sep_items = '/'.join(items)
@@ -461,9 +456,7 @@ class coordinates(commands.Cog):
     async def shops(self, ctx: commands.Context, user: discord.Member = None):
         """
         Let's you see the mentioned user's shops
-        shops <user>
-        Example:
-        $shops @ruffdelmo
+        **e.g**: `$shops <@user>`
         """
         await ctx.message.delete()
         if not user:
@@ -488,8 +481,8 @@ class coordinates(commands.Cog):
     async def delshop(self, ctx: commands.Context, user: discord.Member = None):
         """
         Deletes the shops that the user chooses from the multiple choice embed
-        ADMIN ONLY:
-        Do `delshop @user` to delete shops for that user
+        **ADMIN ONLY**:
+        Do `$delshop <@user>` to delete shops for that user
         """
         await ctx.message.delete()
         if user:
