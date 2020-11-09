@@ -216,6 +216,7 @@ class statistics(commands.Cog):
         await self.guild_check()
         await self.weekday_insert(weekday)
 
+    @commands.has_permissions(administrator=True)
     @commands.command()
     async def statson(self, ctx):
         """Turns stats on or off for the server (Stats are turned on by default)"""
@@ -289,6 +290,7 @@ class statistics(commands.Cog):
                     embed_report.set_image(url="attachment://graph.png")
                     await ctx.send(file=file, embed=embed_report)
 
+    @commands.has_permissions(administrator=True)
     @commands.command(aliases=['statsch'])
     async def statschannel(self, ctx, channel: discord.TextChannel = None):
         """Sets a channel for the weekly reports to be sent to
