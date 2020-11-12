@@ -198,19 +198,16 @@ class coordinates(commands.Cog):
         __<distance> defaults to 100__
         """
         people_gen = [
-            (ucoords.user_id, ucoords.base_coords)
-            for ucoords in self.usercoords if ucoords.user_id != ctx.author.id and ucoords.guild_id == ctx.guild.id
+            (ucrd.base_coords,)
+            for ucrd in self.usercoords if ucrd.guild_id == ctx.guild.id and ucrd.user_id != ctx.author.id
         ]
-        people_rows = people_gen
         int_people_coords = []
-        for tup in people_rows:
-            int_people_coords.append((tuple(tup[1].split('/'))))
+        for tup in people_gen:
+            int_people_coords.append(tuple(tup[0].split('/')))
         matched_coords = []
         for tup in int_people_coords:
-            if await calculate_distance(x, z, int(tup[0]), int(tup[2])) <= distance:
-                matched_coords.append(f'{tup[0]}/{tup[2]}/{tup[1]}')
-            else:
-                pass
+            if await calculate_distance(x, z, int(tup[0]), int(tup[1])) <= distance:
+                matched_coords.append(f'{tup[0]}/{tup[1]}/{tup[2]}')
         match_gen = [
             (ucoords.user_id, ucoords.base_coords, ucoords.name)
             for ucoords in self.usercoords if ucoords.guild_id == ctx.guild.id and ucoords.base_coords in matched_coords
@@ -223,8 +220,8 @@ class coordinates(commands.Cog):
                                    description='Coords are in format: x/z/y',
                                    colour=0xFFAE00)
         for match in match_gen:
-            embed_near.add_field(name=f'{self.bot.get_user(match[0]).display_name}\'s base',
-                                 value=f'{match[1]} /  {match[2]}')
+            embed_near.add_field(name=f'{self.bot.get_user(match[0]).display_name}\'s base: ',
+                                 value=f'{match[1]} | {match[2]}')
         await ctx.send(embed=embed_near)
 
     @commands.command()
