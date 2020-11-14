@@ -3,8 +3,8 @@ from dataclasses import dataclass
 
 import aiosqlite
 import discord
-from disputils import BotEmbedPaginator, BotConfirmation, BotMultipleChoice
 from discord.ext import commands
+from disputils import BotEmbedPaginator, BotConfirmation, BotMultipleChoice
 
 from utils import numbered, pages
 
@@ -121,6 +121,7 @@ class coordinates(commands.Cog):
         Converts the entered x and z coords into overworld and nether coords
         **e.g**: `$convert <x> <z>`
         """
+        await ctx.message.delete()
         nether_coords = f"{x * 8} / {z * 8}"
         overworld_coords = f"{x // 8} / {z // 8}"
         coords_emb = discord.Embed(title=f'Converted coords',
@@ -143,8 +144,9 @@ class coordinates(commands.Cog):
         await ctx.message.delete()
         ints = [x, z, y]
         confirmation = BotConfirmation(ctx, 0xFFAE00)
-        if y > 256:
-            await ctx.send(embed=discord.Embed(title='Y level can\'t be higher than 256 blocks',
+        if y > 256 or y < 0:
+            await ctx.send(embed=discord.Embed(title='Y level can\'t be higher than 256 blocks \n'
+                                                     'Or lower than 0',
                                                colour=0xFF0000))
             return
         await confirmation.confirm(f"Are you sure you want to set your coords as:\n"
@@ -197,6 +199,7 @@ class coordinates(commands.Cog):
         **e.g**:`$nearme <x> <z> <distance>`
         __<distance> defaults to 100__
         """
+        await ctx.message.delete()
         people_gen = [
             (ucrd.base_coords,)
             for ucrd in self.usercoords if ucrd.guild_id == ctx.guild.id and ucrd.user_id != ctx.author.id
@@ -231,6 +234,7 @@ class coordinates(commands.Cog):
         **ADMIN ONLY**:
         Do `delcoord <@user>` to delete shops for that user
         """
+        await ctx.message.delete()
         if user:
             if ('administrator', True) not in ctx.author.guild_permissions:
                 await ctx.send(embed=discord.Embed(title="You don't have the administrator permission!"))
@@ -344,8 +348,9 @@ class coordinates(commands.Cog):
         __<y> defaults to 62 if not stated__
         """
         await ctx.message.delete()
-        if y > 256:
-            await ctx.send(embed=discord.Embed(title='Y level can\'t be higher than 256 blocks',
+        if y > 256 or y < 0:
+            await ctx.send(embed=discord.Embed(title="Y level can't be higher than 256 blocks \n"
+                                                     "Or lower than 0",
                                                colour=0xFF0000))
             return
         ints = [x, z, y]
@@ -571,6 +576,7 @@ class coordinates(commands.Cog):
         """
         Shows all shops for the server
         """
+        await ctx.message.delete()
         all_gen = [
             (shop.name, shop.items, shop.user_id)
             for shop in self.shops if shop.guild_id == ctx.guild.id
