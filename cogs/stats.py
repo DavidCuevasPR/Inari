@@ -136,16 +136,16 @@ class statistics(commands.Cog):
                             for num in range(0, 7):
                                 embed_report.add_field(name=f'{week[num]}', value=f'{week_report[num]}')
 
-                            if int(week_report[6]) > int(week_report[0]):  # comparison between Sunday and Monday
+                            if int(week_report[6]) > int(week_report[0]):  # comparison if Sun > Mon
                                 sun_minus_mon = week_report[6] - week_report[0]
                                 embed_report.set_footer(
-                                    text=f'Your server has grown by {sun_minus_mon} members\n'
+                                    text=f'Your server has grown by {sun_minus_mon} member(s)\n'
                                          f'To turn off Weekly Reports do $statson')
 
-                            elif int(week_report[0]) > int(week_report[6]):
+                            elif int(week_report[0]) > int(week_report[6]):  # comparison if Mon > Sun
                                 mon_minus_sun = week_report[0] - week_report[6]
                                 embed_report.set_footer(
-                                    text=f'Your server has grown by {mon_minus_sun} members')
+                                    text=f'Your server has lost {mon_minus_sun} member(s)')
 
                             elif int(week_report[0]) == int(week_report[6]):
                                 embed_report.set_footer(text='Your server has not grown')
