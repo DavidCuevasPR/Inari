@@ -61,7 +61,7 @@ async def coords_table_create():
     async with aiosqlite.connect("coorddata.db") as db:
         await db.execute("""CREATE TABLE IF NOT EXISTS coords (
                                         user_id integer,
-                                        name text, 
+                                        name text,
                                         base_coords text,
                                         guild_id integer
                                         );""")
@@ -95,16 +95,23 @@ class coordinates(commands.Cog):
                 usercoord_rows = await cursor.fetchall()
                 if usercoord_rows:
                     for coord_tup in usercoord_rows:
-                        ucoord = UserCoords(user_id=coord_tup[0], name=coord_tup[1],
-                                            base_coords=coord_tup[2], guild_id=coord_tup[3])
+                        ucoord = UserCoords(
+                            user_id=coord_tup[0],
+                            name=coord_tup[1],
+                            base_coords=coord_tup[2],
+                            guild_id=coord_tup[3]
+                        )
                         self.usercoords.append(ucoord)
 
             async with db.execute("""SELECT * FROM admincoords""") as cursor:
                 admincoord_rows = await cursor.fetchall()
                 if admincoord_rows:
                     for admin_tup in admincoord_rows:
-                        adm_coord = AdminCoords(name=admin_tup[0], coords=admin_tup[1],
-                                                creator_id=admin_tup[2], guild_id=admin_tup[3])
+                        adm_coord = AdminCoords(
+                            name=admin_tup[0],
+                            coords=admin_tup[1],
+                            creator_id=admin_tup[2],
+                            guild_id=admin_tup[3])
                         self.admincoords.append(adm_coord)
 
             async with db.execute("""SELECT * FROM shops""") as cursor:
@@ -124,7 +131,7 @@ class coordinates(commands.Cog):
         await ctx.message.delete()
         nether_coords = f"{x * 8} / {z * 8}"
         overworld_coords = f"{x // 8} / {z // 8}"
-        coords_emb = discord.Embed(title=f'Converted coords',
+        coords_emb = discord.Embed(title="Converted coords",
                                    colour=0xFFAE00,
                                    description="Coords are in format: x / z")
         coords_emb.add_field(name="Overworld to Nether",
@@ -145,25 +152,35 @@ class coordinates(commands.Cog):
         ints = [x, z, y]
         confirmation = BotConfirmation(ctx, 0xFFAE00)
         if y > 256 or y < 0:
-            await ctx.send(embed=discord.Embed(title='Y level can\'t be higher than 256 blocks \n'
-                                                     'Or lower than 0',
-                                               colour=0xFF0000))
+            await ctx.send(embed=discord.Embed(
+                title='Y level can\'t be higher than 256 blocks \n'
+                      'Or lower than 0',
+                colour=0xFF0000))
             return
-        await confirmation.confirm(f"Are you sure you want to set your coords as:\n"
-                                   f" x: {x}/ z: {z}/ y: {y}/ name: {name}?")
+        await confirmation.confirm(
+            f"Are you sure you want to set your coords as:\n"
+            f" x: {x}/ z: {z}/ y: {y}/ name: {name}?"
+        )
         if confirmation.confirmed:
             str_of_coords = "/".join([str(i) for i in ints])
             async with aiosqlite.connect("coorddata.db") as db:
                 await db.execute(
-                    """INSERT INTO coords(user_id, name, base_coords, guild_id) VALUES (?,?,?,?)""",
+                    """INSERT INTO
+                    coords(user_id, name, base_coords, guild_id)
+                    VALUES (?,?,?,?)""",
                     (ctx.author.id, name, str_of_coords, ctx.guild.id,))
                 await db.commit()
 
-            ucoord = UserCoords(user_id=ctx.author.id, name=name,
-                                base_coords=str_of_coords, guild_id=ctx.guild.id)
+            ucoord = UserCoords(
+                user_id=ctx.author.id,
+                name=name,
+                base_coords=str_of_coords,
+                guild_id=ctx.guild.id)
             self.usercoords.append(ucoord)
-            await confirmation.update(f"Coords set for {ctx.author.display_name}(Name: {name}) as {str_of_coords}",
-                                      color=0xFFAE00)
+            await confirmation.update(
+                f"Coords set for {ctx.author.display_name}(Name: {name})"
+                f"as {str_of_coords}"[:100],
+                color=0xFFAE00)
         else:
             await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
 
@@ -185,12 +202,10 @@ class coordinates(commands.Cog):
         if not gen:
             await ctx.send(embed=embed_nocrds)
             return
-        coords_list = f"{user.display_name}'s coords:\n(x)/(z)/(y)/(name)\n"
-        for coords in gen:
-            coords_list += coords[0] + ' | ' + coords[1] + '\n'
-        embed_coords = discord.Embed(title=f"{coords_list}", colour=0xFFAE00)
-        embed_coords.set_thumbnail(url=user.avatar_url)
-        await ctx.send(embed=embed_coords)
+        await (BotEmbedPaginator(ctx, pages(numbered(
+            [f"Coords: {tup[0]} | Name: {tup[1]}"
+             for tup in gen]
+        ), n=10, title=f'Coordinates for {user.display_name}'))).run()
 
     @commands.command()
     async def nearme(self, ctx: commands.Context, x: int, z: int, distance: int = 100):
@@ -219,13 +234,11 @@ class coordinates(commands.Cog):
             await ctx.send(embed=discord.Embed(title='No coords found',
                                                colour=0xFF0000))
             return
-        embed_near = discord.Embed(title=f'People near your coords {x}/{z}:',
-                                   description='Coords are in format: x/z/y',
-                                   colour=0xFFAE00)
-        for match in match_gen:
-            embed_near.add_field(name=f'{self.bot.get_user(match[0]).display_name}\'s base: ',
-                                 value=f'{match[1]} | {match[2]}')
-        await ctx.send(embed=embed_near)
+        await (BotEmbedPaginator(ctx, pages(numbered(
+            [f"User: {ctx.guild.get_member(tup[0]).display_name}\n"
+             f"Coords: {tup[1]} | Name: {tup[2]}"
+             for tup in match_gen]
+        ), n=10, title=f"People near your coords {x}/{z}\nCoords are in format x/z/y"))).run()
 
     @commands.command()
     async def delcoord(self, ctx: commands.Context, user: discord.Member = None):
@@ -255,7 +268,7 @@ class coordinates(commands.Cog):
             await multiple_choice.quit()
             async with aiosqlite.connect("coorddata.db") as db:
                 if multiple_choice.choice == 'Delete all coords':
-                    await confirmation.confirm(f"Are you sure you want to delete all coords for this user?")
+                    await confirmation.confirm("Are you sure you want to delete all coords for this user?")
                     if confirmation.confirmed:
                         await confirmation.update("Confirmed", color=0xFFAE00)
                         await db.execute("DELETE FROM coords WHERE guild_id=? AND user_id=?", (
@@ -331,11 +344,10 @@ class coordinates(commands.Cog):
         if not allcoords_gen:
             await ctx.send(embed=embed_error)
             return
-        else:
-            await (BotEmbedPaginator(ctx, pages(
-                numbered([f"{ctx.guild.get_member(tup[0]).display_name}: {tup[1] + ' / ' + tup[2]}"
-                          for tup in allcoords_gen]),
-                n=10, title=f'Coordinates for {ctx.guild.name}'))).run()
+        await (BotEmbedPaginator(ctx, pages(numbered(
+            [f"{ctx.guild.get_member(tup[0]).display_name}: {tup[1] + ' / ' + tup[2]}"
+             for tup in allcoords_gen]
+        ), n=10, title=f'Coordinates for {ctx.guild.name}'))).run()
 
     @commands.has_permissions(administrator=True)
     @commands.command(aliases=['setadmin'])
@@ -448,8 +460,8 @@ class coordinates(commands.Cog):
                 await db.execute("""INSERT INTO shops (user_id, name, items, guild_id) VALUES(?,?,?,?)""",
                                  (ctx.author.id, name, slash_sep_items, ctx.guild.id))
                 await db.commit()
-            await confirmation.update(f'Shop for {ctx.author.display_name} set as:\n'
-                                      f'Name: {name} / Sells: {slash_sep_items}',
+            await confirmation.update(f'Shop for {ctx.author.display_name} set as:'
+                                      f'Name: {name} / Sells: {slash_sep_items}'[:100],
                                       color=0xFFAE00)
         else:
             await confirmation.update("Not confirmed", hide_author=True, color=0xFF0000)
@@ -463,21 +475,18 @@ class coordinates(commands.Cog):
         await ctx.message.delete()
         if not user:
             user = ctx.author
-        embed_nocrds = discord.Embed(title=f"{user.display_name} doesn't own any shops",
-                                     colour=0xFF0000)
         shops_gen = [
             (shops.name, shops.items)
             for shops in self.shops if shops.user_id == user.id and shops.guild_id == ctx.guild.id
         ]
         if not shops_gen:
-            await ctx.send(embed=embed_nocrds)
+            await ctx.send(embed=discord.Embed(title=f"{user.display_name} doesn't own any shops",
+                                               colour=0xFF0000))
             return
-        shops_e = discord.Embed(title=f"Shop's owned by {user.display_name}",
-                                colour=0xFFAE00)
-        shops_e.set_thumbnail(url=user.avatar_url)
-        for shop in shops_gen:
-            shops_e.add_field(name=shop[0], value=shop[1], inline=False)
-        await ctx.send(embed=shops_e)
+        await (BotEmbedPaginator(ctx, pages(numbered(
+            [f"Name: {tup[0]}\nItems: {tup[1]}"
+             for tup in shops_gen]
+        ), n=10, title=f"Shops owned by {user.display_name}"))).run()
 
     @commands.command()
     async def delshop(self, ctx: commands.Context, user: discord.Member = None):
@@ -510,7 +519,7 @@ class coordinates(commands.Cog):
             await multiple_choice.quit()
             async with aiosqlite.connect("coorddata.db") as db:
                 if multiple_choice.choice == 'Delete all shops':
-                    await confirmation.confirm(f"Are you sure you want to delete all shops for this user?")
+                    await confirmation.confirm("Are you sure you want to delete all shops for this user?")
                     if confirmation.confirmed:
                         await confirmation.update("Confirmed", color=0xFFAE00)
                         await db.execute("DELETE FROM shops WHERE guild_id=? AND user_id=?", (
@@ -585,10 +594,10 @@ class coordinates(commands.Cog):
             await ctx.send(embed=discord.Embed(title="No shops set",
                                                colour=0xFF0000))
             return
-        await (BotEmbedPaginator(ctx, pages(
-            numbered([f"Name: {tup[0]} | Items: {tup[1]} | Owner: {ctx.guild.get_member(tup[2]).display_name}"
-                      for tup in all_gen]),
-            n=10, title=f'Coordinates for {ctx.guild.name}'))).run()
+        await (BotEmbedPaginator(ctx, pages(numbered(
+            [f"Name: {tup[0]} | Items: {tup[1]} | Owner: {ctx.guild.get_member(tup[2]).display_name}"
+             for tup in all_gen]
+        ), n=10, title=f'Coordinates for {ctx.guild.name}'))).run()
 
 
 def setup(bot):
